@@ -1,5 +1,5 @@
 {
-  "app": "npx ts-node --prefer-ts-exts bin/wbertore_cdk.ts",
+  "app": "npx ts-node --prefer-ts-exts bin/deploy_pipeline.ts",
   "watch": {
     "include": [
       "**"
