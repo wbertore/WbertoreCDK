@@ -66,7 +66,6 @@ export class PipelineStack extends cdk.Stack {
       commands: [
         // TODO: debugging, removeme once fixed
         "echo $PATH",
-        "which zig",
         "cargo test",
         "cargo lambda build --release --arm64 --output-format zip"
       ],
