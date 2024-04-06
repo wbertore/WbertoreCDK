@@ -55,9 +55,9 @@ export class PipelineStack extends cdk.Stack {
         // Install zig, which is a dependency of cargo-lambda
         "curl --proto '=https' --tlsv1.2 -sSf https://ziglang.org/builds/" + zigVersion + ".tar.xz | tar -x -J",
         // To avoid invalid characters in PATH, rename the folder.
-        "mv './" + zigVersion + "' ./" + zigFolderPrefix,
-        "ls -la ./'" + zigFolderPrefix + "'/",
-        "export PATH=$PATH:$(pwd -P)/'" + zigFolderPrefix + "'/zig",
+        "mv './" + zigVersion + "' ./" + 'zigInstall',
+        "ls -la ./'" + 'zigInstall' + "'/",
+        "export PATH=$PATH:$(pwd -P)/'" + 'zigInstall' + "'/zig",
         // Add the arm64 Al2 Linux target. copied from a local build error trying to run the command.
         "rustup target add aarch64-unknown-linux-gnu"
       ],
@@ -66,6 +66,8 @@ export class PipelineStack extends cdk.Stack {
       commands: [
         // TODO: debugging, removeme once fixed
         "echo $PATH",
+        "which cargo",
+        "which zig",
         "cargo test",
         "cargo lambda build --release --arm64 --output-format zip"
       ],
