@@ -39,7 +39,9 @@ export class PipelineStack extends cdk.Stack {
     return new CodeBuildStep("rust-build-step", {
       installCommands: [
         // Install rustup: https://forge.rust-lang.org/infra/other-installation-methods.html#other-ways-to-install-rustup
-        "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh", 
+        // `--` stops option processing on `sh` so `-` is passed to the downloaded and invoked script.
+        "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
+        "source $HOME/.cargo/env && ", 
         // Install cargo binstall, so we can pull down a pre-compiled binary instead of compiling cargo-lambda from
         // source. Apparently this takes like 10 minutes: 
         // https://www.cargo-lambda.info/guide/installation.html#building-from-source
@@ -52,7 +54,10 @@ export class PipelineStack extends cdk.Stack {
       ],
       // https://github.com/awslabs/aws-lambda-rust-runtime?tab=readme-ov-file#12-build-your-lambda-functions
       // For now this is outputting a 17.3 MB zip file. If it breaches 50MB we'll need to offload this to s3 and give Lambda a pointer to s3.
-      commands: ["cargo lambda build --release --arm64 --output-format zip"],
+      commands: [
+        "cargo test",
+        "cargo lambda build --release --arm64 --output-format zip"
+      ],
       input: rustLambdasSource,
       // TODO this is eventually going to be a tree where each entry point has a different parent.
       // ./target/lambda/
