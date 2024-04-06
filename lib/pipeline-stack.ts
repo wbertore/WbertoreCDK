@@ -43,7 +43,7 @@ export class PipelineStack extends cdk.Stack {
         "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
         ". $HOME/.cargo/env", 
         // Install cargo binstall, so we can pull down a pre-compiled binary instead of compiling cargo-lambda from
-        // source. Apparently this takes like 10 minutes: 
+        // source. Apparently compiling from source takes like 10 minutes: 
         // https://www.cargo-lambda.info/guide/installation.html#building-from-source
         // https://github.com/cargo-bins/cargo-binstall?tab=readme-ov-file#linux-and-macos
         "curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash",
@@ -52,14 +52,16 @@ export class PipelineStack extends cdk.Stack {
         "cargo binstall -y cargo-lambda", 
         // Install zig, which is a dependency of cargo-lambda
         "curl --proto '=https' --tlsv1.2 -sSf https://ziglang.org/builds/zig-linux-x86_64-0.12.0-dev.3539+23f729aec.tar.xz | xz -d > ./zig",
-        // add zig to path.
-        "export PATH=$PATH:./zig",
+        // make zig executable and add zig to path.
+        "chmod +x ./zig && export PATH=$PATH:./zig",
         // Add the arm64 Al2 Linux target. copied from a local build error trying to run the command.
         "rustup target add aarch64-unknown-linux-gnu"
       ],
       // https://github.com/awslabs/aws-lambda-rust-runtime?tab=readme-ov-file#12-build-your-lambda-functions
       // For now this is outputting a 17.3 MB zip file. If it breaches 50MB we'll need to offload this to s3 and give Lambda a pointer to s3.
       commands: [
+        // TODO: debugging, removeme once fixed
+        "echo $PATH",
         "cargo test",
         "cargo lambda build --release --arm64 --output-format zip"
       ],
