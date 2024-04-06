@@ -55,9 +55,9 @@ export class PipelineStack extends cdk.Stack {
         "curl --proto '=https' --tlsv1.2 -sSf https://ziglang.org/builds/" + zigVersion + ".tar.xz | tar -x -J",
         // make zig executable and add zig to path.
         // more debugging
-        "ls -la ./",
-        "pwd -P ./" + zigVersion + "/zig",
-        "export PATH=$PATH:$(pwd -P)/" + zigVersion + "/zig",
+        "ls -la ./'" + zigVersion + "'/",
+        "pwd -P ./'" + zigVersion + "'/zig",
+        "export PATH=$PATH:$(pwd -P)/'" + zigVersion + "'/zig",
         // Add the arm64 Al2 Linux target. copied from a local build error trying to run the command.
         "rustup target add aarch64-unknown-linux-gnu"
       ],
