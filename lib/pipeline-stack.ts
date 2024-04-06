@@ -57,7 +57,7 @@ export class PipelineStack extends cdk.Stack {
         // To avoid invalid characters in PATH, rename the folder.
         "mv './" + zigVersion + "' ./" + 'zigInstall',
         "ls -la ./'" + 'zigInstall' + "'/",
-        "export PATH=$PATH:$(pwd -P)/'" + 'zigInstall' + "'/zig",
+        "export PATH=$PATH:$(pwd -P)/'" + 'zigInstall' + "'",
         // Add the arm64 Al2 Linux target. copied from a local build error trying to run the command.
         "rustup target add aarch64-unknown-linux-gnu"
       ],
