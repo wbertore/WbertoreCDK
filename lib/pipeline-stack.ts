@@ -50,6 +50,10 @@ export class PipelineStack extends cdk.Stack {
         // Pull down pre-compiled binary for building rust lambdas: https://www.cargo-lambda.info/guide/installation.html#binary-releases
         // `-y` to auto-accept the install confirmation prompt
         "cargo binstall -y cargo-lambda", 
+        // Install zig, which is a dependency of cargo-lambda
+        "curl --proto '=https' --tlsv1.2 -sSf https://ziglang.org/builds/zig-linux-x86_64-0.12.0-dev.3539+23f729aec.tar.xz | xz -d > ./zig",
+        // add zig to path.
+        "export PATH=$PATH:./zig",
         // Add the arm64 Al2 Linux target. copied from a local build error trying to run the command.
         "rustup target add aarch64-unknown-linux-gnu"
       ],
