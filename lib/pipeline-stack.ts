@@ -48,7 +48,8 @@ export class PipelineStack extends cdk.Stack {
         // https://github.com/cargo-bins/cargo-binstall?tab=readme-ov-file#linux-and-macos
         "curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash",
         // Pull down pre-compiled binary for building rust lambdas: https://www.cargo-lambda.info/guide/installation.html#binary-releases
-        "cargo binstall cargo-lambda", 
+        // `-y` to auto-accept the install confirmation prompt
+        "cargo binstall -y cargo-lambda", 
         // Add the arm64 Al2 Linux target. copied from a local build error trying to run the command.
         "rustup target add aarch64-unknown-linux-gnu"
       ],
