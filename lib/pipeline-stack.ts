@@ -36,6 +36,7 @@ export class PipelineStack extends cdk.Stack {
   };
 
   createCodeBuildStep(rustLambdasSource: cdk.pipelines.CodePipelineSource): CodeBuildStep {
+    const zigVersion = "zig-linux-x86_64-0.12.0-dev.3539+23f729aec";
     return new CodeBuildStep("rust-build-step", {
       installCommands: [
         // Install rustup: https://forge.rust-lang.org/infra/other-installation-methods.html#other-ways-to-install-rustup
@@ -51,9 +52,11 @@ export class PipelineStack extends cdk.Stack {
         // `-y` to auto-accept the install confirmation prompt
         "cargo binstall -y cargo-lambda", 
         // Install zig, which is a dependency of cargo-lambda
-        "curl --proto '=https' --tlsv1.2 -sSf https://ziglang.org/builds/zig-linux-x86_64-0.12.0-dev.3539+23f729aec.tar.xz | xz -d > ./zig",
+        "curl --proto '=https' --tlsv1.2 -sSf https://ziglang.org/builds/" + zigVersion + ".tar.xz | tar -x",
         // make zig executable and add zig to path.
-        "chmod +x ./zig && export PATH=$PATH:./zig",
+        // more debugging
+        "pwd -P ./" + zigVersion + "/zig",
+        "export PATH=$PATH:$(pwd -P)/" + zigVersion + "/zig",
         // Add the arm64 Al2 Linux target. copied from a local build error trying to run the command.
         "rustup target add aarch64-unknown-linux-gnu"
       ],
