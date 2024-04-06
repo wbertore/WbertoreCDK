@@ -54,20 +54,15 @@ export class PipelineStack extends cdk.Stack {
         "cargo binstall -y cargo-lambda", 
         // Install zig, which is a dependency of cargo-lambda
         "curl --proto '=https' --tlsv1.2 -sSf https://ziglang.org/builds/" + zigVersion + ".tar.xz | tar -x -J",
-        // To avoid invalid characters in PATH, rename the folder.
-        "mv './" + zigVersion + "' ./" + 'zigInstall',
-        "ls -la ./'" + 'zigInstall' + "'/",
-        "export PATH=$PATH:$(pwd -P)/'" + 'zigInstall' + "'",
+        // To avoid invalid characters in PATH, rename the folder. Then add the shortened folder to the PATH.
+        "mv './" + zigVersion + "' ./" + zigFolderPrefix,
+        "export PATH=$PATH:$(pwd -P)/'" + zigFolderPrefix + "'",
         // Add the arm64 Al2 Linux target. copied from a local build error trying to run the command.
         "rustup target add aarch64-unknown-linux-gnu"
       ],
       // https://github.com/awslabs/aws-lambda-rust-runtime?tab=readme-ov-file#12-build-your-lambda-functions
       // For now this is outputting a 17.3 MB zip file. If it breaches 50MB we'll need to offload this to s3 and give Lambda a pointer to s3.
       commands: [
-        // TODO: debugging, removeme once fixed
-        "echo $PATH",
-        "which cargo",
-        "which zig",
         "cargo test",
         "cargo lambda build --release --arm64 --output-format zip"
       ],
