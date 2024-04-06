@@ -41,7 +41,7 @@ export class PipelineStack extends cdk.Stack {
         // Install rustup: https://forge.rust-lang.org/infra/other-installation-methods.html#other-ways-to-install-rustup
         // `--` stops option processing on `sh` so `-` is passed to the downloaded and invoked script.
         "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
-        "source $HOME/.cargo/env", 
+        ". $HOME/.cargo/env", 
         // Install cargo binstall, so we can pull down a pre-compiled binary instead of compiling cargo-lambda from
         // source. Apparently this takes like 10 minutes: 
         // https://www.cargo-lambda.info/guide/installation.html#building-from-source
