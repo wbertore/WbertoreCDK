@@ -21,6 +21,11 @@ export class PipelineStack extends cdk.Stack {
         input: CodePipelineSource.gitHub('wbertore/WbertoreCDK', 'main', {
           authentication: githubSecret,
         }),
+        // HACK: Force codepipelines to resolve this:
+        // https://github.com/aws/aws-cdk/issues/20643
+        env: {
+          RUST_LAMBDAS_SOURCE_COMMIT_ID: rustLambdasSource.sourceAttribute('CommitId')
+        },
         // add rust lambdas as an additional source. We're just using this as a trigger and re-pulling it in the wave step below.
         additionalInputs: {
           "../WbertoreRustLambdas": rustLambdasSource
@@ -28,6 +33,7 @@ export class PipelineStack extends cdk.Stack {
         commands: ['npm ci', 'npm run build', 'npx cdk synth']
       }),
     });
+
     const rustArtifactBucket = new Bucket(this, "rust-artifacts-bucket", {
       bucketName: "wbertore-website-rust-artifacts"
     });
@@ -76,6 +82,7 @@ export class PipelineStack extends cdk.Stack {
       // https://github.com/awslabs/aws-lambda-rust-runtime?tab=readme-ov-file#12-build-your-lambda-functions
       // For now this is outputting a 17.3 MB zip file. If it breaches 50MB we'll need to offload this to s3 and give Lambda a pointer to s3.
       commands: [
+        "echo $CODEBUILD_RESOLVED_SOURCE_VERSION",
         "cargo test",
         "cargo lambda build --release --arm64 --output-format zip"
       ],
@@ -99,8 +106,12 @@ export class PipelineStack extends cdk.Stack {
     rustBuildFileSet: FileSet, 
     rustArtifactBucket: IBucket
   ): string {
-    // Source attribute should update on each commit. We need to pass this to our lambda
-    const rustArtifactKey = `bootstrap-${rustLambdasSource.sourceAttribute}.zip`
+    
+    // Make the s3 keys unique based on the source code.
+    // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.pipelines.CodePipelineSource.html#example
+    // TODO: This is broken, we might need to somehow pull this out of the build step?
+    //const rustArtifactKey = `bootstrap-${rustLambdasSource.sourceAttribute('CommitId')}.zip`
+    const rustArtifactKey = `bootstrap.zip`
     wave.addPre(new DeployRustArtifactsStep(
       rustArtifactBucket, 
       rustArtifactKey, 
