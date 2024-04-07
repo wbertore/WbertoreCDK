@@ -29,7 +29,7 @@ export class PipelineStack extends cdk.Stack {
       }),
     });
     const rustArtifactBucket = new Bucket(this, "rust-artifacts-bucket", {
-      bucketName: "rust-artifacts"
+      bucketName: "wbertore-website-rust-artifacts"
     });
     
     const buildWave = pipeline.addWave("rust-build");
