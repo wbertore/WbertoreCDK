@@ -1,8 +1,11 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { CodeBuildStep, CodePipeline, CodePipelineSource, ShellStep } from 'aws-cdk-lib/pipelines';
+import { CodeBuildStep, CodePipeline, CodePipelineSource, FileSet, ShellStep, Wave } from 'aws-cdk-lib/pipelines';
+import { Bucket, IBucket } from 'aws-cdk-lib/aws-s3';
+import { DeployRustArtifactsStep } from './deploy-rust-artifacts-step';
+import { ApplicationStage } from './application-stage';
 
-export class PipelineStack extends cdk.Stack {
+export class PipelineStack extends cdk.Stack {  
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
     // The secret we manually configured in aws secrets manager that has the private key from github.com for my account.
@@ -25,20 +28,30 @@ export class PipelineStack extends cdk.Stack {
         commands: ['npm ci', 'npm run build', 'npx cdk synth']
       }),
     });
-
+    const rustArtifactBucket = new Bucket(this, "rust-artifacts-bucket", {
+      bucketName: "rust-artifacts"
+    });
+    
     const buildWave = pipeline.addWave("rust-build");
-    const rustCodeBuildStep = this.createCodeBuildStep(rustLambdasSource);
+    const rustBuildFileSet = this.addCodeBuildStep(buildWave, rustLambdasSource);
 
-    buildWave.addPre(rustCodeBuildStep);
-    // TODO: The lambda needs to be pointed at the inner bootstrap.zip file:
-    // https://docs.aws.amazon.com/lambda/latest/dg/rust-package.html#rust-deploy-cargo
-    //rustCodeBuildStep.outputs
+    const deployWave = pipeline.addWave("deploy-rust-artifact");
+    const rustArtifactKey = this.addDeployRustArtifactsStep(deployWave, rustLambdasSource, rustBuildFileSet, rustArtifactBucket);
+    
+    const applicationStage = new ApplicationStage(this, "website-prod", {
+      rustArtifactBucket,
+      rustArtifactKey,
+    })
+    pipeline.addStage(applicationStage)
   };
 
-  createCodeBuildStep(rustLambdasSource: cdk.pipelines.CodePipelineSource): CodeBuildStep {
+  addCodeBuildStep(
+    wave: Wave, 
+    rustLambdasSource: cdk.pipelines.CodePipelineSource,
+  ): FileSet {
     const zigFolderPrefix = "zig-linux-x86_64"
     const zigVersion = `${zigFolderPrefix}-0.12.0-dev.3539+23f729aec`;
-    return new CodeBuildStep("rust-build-step", {
+    const rustCodeBuildStep = new CodeBuildStep("rust-build-step", {
       installCommands: [
         // Install rustup: https://forge.rust-lang.org/infra/other-installation-methods.html#other-ways-to-install-rustup
         // `--` stops option processing on `sh` so `-` is passed to the downloaded and invoked script.
@@ -72,7 +85,27 @@ export class PipelineStack extends cdk.Stack {
       //                | my-rust-lambda-1/bootstrap.zip
       //                | my-rust-lambda-2/bootstrap.zip
       // This is the primary output of the step. In theory we can reference this in other steps...
-      primaryOutputDirectory: "./target/lambda/WbertoreRustLambdas"
+      primaryOutputDirectory: "./target/lambda/WbertoreRustLambdas",
     });
+
+    wave.addPre(rustCodeBuildStep);
+    // we should only have 1 output.
+    return rustCodeBuildStep.outputs[0].fileSet
+  }
+
+  addDeployRustArtifactsStep(
+    wave: Wave, 
+    rustLambdasSource: cdk.pipelines.CodePipelineSource, 
+    rustBuildFileSet: FileSet, 
+    rustArtifactBucket: IBucket
+  ): string {
+    // Source attribute should update on each commit. We need to pass this to our lambda
+    const rustArtifactKey = `bootstrap-${rustLambdasSource.sourceAttribute}.zip`
+    wave.addPre(new DeployRustArtifactsStep(
+      rustArtifactBucket, 
+      rustArtifactKey, 
+      rustBuildFileSet,
+    ));
+    return rustArtifactKey;
   }
 }
