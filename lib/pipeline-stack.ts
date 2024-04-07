@@ -4,6 +4,7 @@ import { CodeBuildStep, CodePipeline, CodePipelineSource, FileSet, ShellStep, Wa
 import { Bucket, IBucket } from 'aws-cdk-lib/aws-s3';
 import { DeployRustArtifactsStep } from './deploy-rust-artifacts-step';
 import { ApplicationStage } from './application-stage';
+import { GlobalVariables } from 'aws-cdk-lib/aws-codepipeline';
 
 export class PipelineStack extends cdk.Stack {  
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -84,7 +85,7 @@ export class PipelineStack extends cdk.Stack {
       commands: [
         "echo $CODEBUILD_RESOLVED_SOURCE_VERSION",
         "cargo test",
-        "cargo lambda build --release --arm64 --output-format zip"
+        "cargo lambda build --release --arm64"
       ],
       input: rustLambdasSource,
       // TODO this is eventually going to be a tree where each entry point has a different parent.
@@ -109,9 +110,7 @@ export class PipelineStack extends cdk.Stack {
     
     // Make the s3 keys unique based on the source code.
     // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.pipelines.CodePipelineSource.html#example
-    // TODO: This is broken, we might need to somehow pull this out of the build step?
-    //const rustArtifactKey = `bootstrap-${rustLambdasSource.sourceAttribute('CommitId')}.zip`
-    const rustArtifactKey = `bootstrap.zip`
+    const rustArtifactKey = `bootstrap-${GlobalVariables.executionId}`
     wave.addPre(new DeployRustArtifactsStep(
       rustArtifactBucket, 
       rustArtifactKey, 
