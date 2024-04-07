@@ -5,6 +5,7 @@ import { Bucket, IBucket } from 'aws-cdk-lib/aws-s3';
 import { DeployRustArtifactsStep } from './deploy-rust-artifacts-step';
 import { ApplicationStage } from './application-stage';
 import { GlobalVariables } from 'aws-cdk-lib/aws-codepipeline';
+import { RUST_ARTIFACT_S3_KEY_PARAM_NAME, buildRustArtifactKey } from './common';
 
 export class PipelineStack extends cdk.Stack {  
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -38,18 +39,27 @@ export class PipelineStack extends cdk.Stack {
     const rustArtifactBucket = new Bucket(this, "rust-artifacts-bucket", {
       bucketName: "wbertore-website-rust-artifacts"
     });
-    
+    // Our artifact key derived from the pipeline executionId.
+    // The executionId can only be resolved in the pipeline stack and in pipeline actions. To 
+    // access this in deployed stack, it must be passed via a CfnParameter
+    const rustArtifactKey = buildRustArtifactKey(GlobalVariables.executionId);
+
     const buildWave = pipeline.addWave("rust-build");
     const rustBuildFileSet = this.addCodeBuildStep(buildWave, rustLambdasSource);
 
     const deployWave = pipeline.addWave("deploy-rust-artifact");
-    const rustArtifactKey = this.addDeployRustArtifactsStep(deployWave, rustLambdasSource, rustBuildFileSet, rustArtifactBucket);
+    this.addDeployRustArtifactsStep(deployWave, rustBuildFileSet, rustArtifactBucket, rustArtifactKey);
     
     const applicationStage = new ApplicationStage(this, "website-prod", {
       rustArtifactBucket,
       rustArtifactKey,
-    })
-    pipeline.addStage(applicationStage)
+    });
+
+    pipeline.addStage(applicationStage);
+
+    // HACK: We need to build the pipeline to mutate the inner structure to inject a cloudformation parameter
+    pipeline.buildPipeline();
+    this.addParameterOverrideToStage(pipeline, applicationStage, RUST_ARTIFACT_S3_KEY_PARAM_NAME, rustArtifactKey);
   };
 
   addCodeBuildStep(
@@ -103,19 +113,38 @@ export class PipelineStack extends cdk.Stack {
 
   addDeployRustArtifactsStep(
     wave: Wave, 
-    rustLambdasSource: cdk.pipelines.CodePipelineSource, 
     rustBuildFileSet: FileSet, 
-    rustArtifactBucket: IBucket
-  ): string {
+    rustArtifactBucket: IBucket,
+    rustArtifactKey: string,
+  ) {
     
     // Make the s3 keys unique based on the source code.
     // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.pipelines.CodePipelineSource.html#example
-    const rustArtifactKey = `bootstrap-${GlobalVariables.executionId}`
     wave.addPre(new DeployRustArtifactsStep(
       rustArtifactBucket, 
       rustArtifactKey, 
       rustBuildFileSet,
     ));
-    return rustArtifactKey;
+  }
+
+  // HACK: Allows us to set parameterOverrides for stages in our app.
+  // following example on stack overflow
+  // https://stackoverflow.com/questions/76391190/use-aws-codepipeline-variables-in-a-custom-stage
+  addParameterOverrideToStage(
+    codepipeline: CodePipeline, 
+    stage: cdk.Stage, 
+    parameterName: string, 
+    parameterValue: string
+  ) {
+    const deployIdx = codepipeline.pipeline.stages.indexOf(codepipeline.pipeline.stage(stage.stageName));
+    const actionsIdxs = codepipeline.pipeline.stage(stage.stageName).actions.filter(x => x.actionProperties.category === 'Deploy').map((x,i)=>i);
+    const cfnPipeline = codepipeline.pipeline.node.findChild('Resource') as cdk.aws_codepipeline.CfnPipeline;
+    for(const i of actionsIdxs){
+      cfnPipeline.addOverride(
+        `Properties.Stages.${deployIdx}.Actions.${i}.Configuration.ParameterOverrides`,
+        JSON.stringify({
+            [parameterName]: parameterValue
+        }));
+    }
   }
 }
