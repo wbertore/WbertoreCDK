@@ -11,7 +11,7 @@ export class PipelineStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
     // The secret we manually configured in aws secrets manager that has the private key from github.com for my account.
-    const githubSecret = cdk.SecretValue.secretsManager('github-access-token-codepipeline');
+    const githubSecret = cdk.SecretValue.secretsManager('github-access-token-v2-codepipeline');
     const rustLambdasSource = CodePipelineSource.gitHub('wbertore/WbertoreRustLambdas', 'main', {
       authentication: githubSecret,
     });
