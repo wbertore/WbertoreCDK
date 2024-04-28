@@ -79,6 +79,7 @@ export class WebsiteStack extends cdk.Stack {
         });
         const websiteARecord = new ARecord(this, "website-a-record", {
             zone: rootHostedZone,
+            recordName: WEBSITE_DOMAIN,
             target: RecordTarget.fromAlias(new ApiGatewayv2DomainProperties(websiteDomain.regionalDomainName, websiteDomain.regionalHostedZoneId))
         });
     }
