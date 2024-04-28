@@ -14,7 +14,6 @@ export class ApplicationStage extends cdk.Stage {
         this.websiteStack = new WebsiteStack(this, "website-stack", { 
             stackName: "website-stack",
             description: "Infrastructure for website.wbertore.dev website",
-            env: props?.env,
             ...props,
         });
     }
