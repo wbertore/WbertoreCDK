@@ -6,6 +6,7 @@ import { DeployRustArtifactsStep } from './deploy-rust-artifacts-step';
 import { ApplicationStage } from './application-stage';
 import { GlobalVariables } from 'aws-cdk-lib/aws-codepipeline';
 import { RUST_ARTIFACT_S3_KEY_PARAM_NAME, buildRustArtifactKey } from './common';
+import * as codebuild from 'aws-cdk-lib/aws-codebuild';
 
 export class PipelineStack extends cdk.Stack {  
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -101,6 +102,17 @@ export class PipelineStack extends cdk.Stack {
       //                | my-rust-lambda-2/bootstrap.zip
       // This is the primary output of the step. In theory we can reference this in other steps...
       primaryOutputDirectory: "./target/lambda/WbertoreRustLambdas",
+      cache: codebuild.Cache.local(codebuild.LocalCacheMode.CUSTOM),
+      partialBuildSpec: codebuild.BuildSpec.fromObject({
+        cache: {
+          paths: [
+            "$HOME/.cargo/**/*",
+            "$HOME/.rustup/**/*",
+            "target/**/*",
+            zigVersion + "/**/*"
+          ]
+        }
+      })
     });
 
     wave.addPre(rustCodeBuildStep);
