@@ -9,6 +9,7 @@ import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { ApiGatewayv2DomainProperties } from 'aws-cdk-lib/aws-route53-targets';
 import { UserPool, UserPoolClient, UserPoolDomain } from 'aws-cdk-lib/aws-cognito';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 
 export interface WebsiteStackProps extends cdk.StackProps {
     rustArtifactBucket: IBucket,
@@ -37,6 +38,7 @@ export class WebsiteStack extends cdk.Stack {
         const userPoolClient = new UserPoolClient(this, "website-user-pool-client", {
             userPool,
             authFlows: { userPassword: true, userSrp: true },
+            generateSecret: true,
             oAuth: {
                 flows: { authorizationCodeGrant: true },
                 scopes: [{ scopeName: "openid" }, { scopeName: "email" }, { scopeName: "profile" }],
@@ -63,6 +65,11 @@ export class WebsiteStack extends cdk.Stack {
                 AUTH_DOMAIN: AUTH_SUBDOMAIN
             }
         });
+
+        websiteBackend.addToRolePolicy(new PolicyStatement({
+            actions: ['cognito-idp:DescribeUserPoolClient'],
+            resources: [userPool.userPoolArn]
+        }));
 
         const websiteBackendAlias = new Alias(this, "website-backend-alias", {
             aliasName: "live",
