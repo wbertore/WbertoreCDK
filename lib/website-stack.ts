@@ -9,7 +9,7 @@ import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { ApiGatewayv2DomainProperties } from 'aws-cdk-lib/aws-route53-targets';
 import { UserPool, UserPoolClient, UserPoolDomain } from 'aws-cdk-lib/aws-cognito';
-import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { PolicyStatement, Role, AccountRootPrincipal, ManagedPolicy, IGrantable } from 'aws-cdk-lib/aws-iam';
 
 export interface WebsiteStackProps extends cdk.StackProps {
     rustArtifactBucket: IBucket,
@@ -66,10 +66,23 @@ export class WebsiteStack extends cdk.Stack {
             }
         });
 
-        websiteBackend.addToRolePolicy(new PolicyStatement({
-            actions: ['cognito-idp:DescribeUserPoolClient'],
-            resources: [userPool.userPoolArn]
-        }));
+        const localDevRole = new Role(this, "localDevRole", {
+            roleName: "localDevRole",
+            assumedBy: new AccountRootPrincipal(),
+            description: "Role for local testing with same permissions as website-backend Lambda"
+        });
+
+        // Grant permissions to both Lambda and local dev role
+        const grantWebsiteBackendPermissions = (grantables: IGrantable[]) => {
+            grantables.forEach(grantable => {
+                grantable.grantPrincipal.addToPrincipalPolicy(new PolicyStatement({
+                    actions: ['cognito-idp:DescribeUserPoolClient'],
+                    resources: [userPool.userPoolArn]
+                }));
+            });
+        };
+
+        grantWebsiteBackendPermissions([websiteBackend, localDevRole]);
 
         const websiteBackendAlias = new Alias(this, "website-backend-alias", {
             aliasName: "live",
