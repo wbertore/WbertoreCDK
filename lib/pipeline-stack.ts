@@ -69,9 +69,11 @@ export class PipelineStack extends cdk.Stack {
   ): FileSet {
     const zigVersion = "zig-x86_64-linux-0.15.2";
     const rustCodeBuildStep = new CodeBuildStep("rust-build-step", {
+      buildEnvironment: {
+        buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_ARM_3,
+        computeType: codebuild.ComputeType.SMALL,
+      },
       installCommands: [
-        // Install cross-compiler for ARM64 target
-        "yum install -y gcc-aarch64-linux-gnu",
         // Install rustup: https://forge.rust-lang.org/infra/other-installation-methods.html#other-ways-to-install-rustup
         // `--` stops option processing on `sh` so `-` is passed to the downloaded and invoked script.
         "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
@@ -95,7 +97,7 @@ export class PipelineStack extends cdk.Stack {
       commands: [
         "echo $CODEBUILD_RESOLVED_SOURCE_VERSION",
         "cargo chef prepare --recipe-path recipe.json",
-        "cargo chef cook --release --recipe-path recipe.json --target aarch64-unknown-linux-gnu",
+        "cargo chef cook --release --recipe-path recipe.json",
         "cargo test",
         "cargo lambda build --release --arm64"
       ],
