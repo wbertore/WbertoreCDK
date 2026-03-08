@@ -10,18 +10,18 @@ import { RUST_ARTIFACT_S3_KEY_PARAM_NAME, buildRustArtifactKey } from './common'
 export class PipelineStack extends cdk.Stack {  
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
-    // The secret we manually configured in aws secrets manager that has the private key from github.com for my account.
-    const githubSecret = cdk.SecretValue.secretsManager('github-access-token-v2-codepipeline');
-    const rustLambdasSource = CodePipelineSource.gitHub('wbertore/WbertoreRustLambdas', 'main', {
-      authentication: githubSecret,
+    const connectionArn = 'arn:aws:codestar-connections:us-west-2:042589243248:connection/cff65188-1a93-4e33-a0f9-f433cff4d5c0';
+    
+    const rustLambdasSource = CodePipelineSource.connection('wbertore/WbertoreRustLambdas', 'main', {
+      connectionArn,
     });
 
     // self mutating build step
     const pipeline = new CodePipeline(this, 'Pipeline', {
       pipelineName: 'Pipeline',
       synth: new ShellStep('Synth', {
-        input: CodePipelineSource.gitHub('wbertore/WbertoreCDK', 'main', {
-          authentication: githubSecret,
+        input: CodePipelineSource.connection('wbertore/WbertoreCDK', 'main', {
+          connectionArn,
         }),
         // HACK: Force codepipelines to resolve this:
         // https://github.com/aws/aws-cdk/issues/20643
