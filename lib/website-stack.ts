@@ -95,6 +95,12 @@ export class WebsiteStack extends cdk.Stack {
         };
 
         grantWebsiteBackendPermissions([websiteBackend, localDevRole]);
+        
+        // Grant local dev role permission to read Lambda config (for local-server.sh)
+        localDevRole.addToPolicy(new PolicyStatement({
+            actions: ['lambda:GetFunctionConfiguration'],
+            resources: [websiteBackend.functionArn]
+        }));
 
         const websiteBackendAlias = new Alias(this, "website-backend-alias", {
             aliasName: "live",
