@@ -10,6 +10,7 @@ import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatem
 import { ApiGatewayv2DomainProperties } from 'aws-cdk-lib/aws-route53-targets';
 import { UserPool, UserPoolClient, UserPoolDomain } from 'aws-cdk-lib/aws-cognito';
 import { PolicyStatement, Role, AccountRootPrincipal, ManagedPolicy, IGrantable } from 'aws-cdk-lib/aws-iam';
+import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 
 export interface WebsiteStackProps extends cdk.StackProps {
     rustArtifactBucket: IBucket,
@@ -51,6 +52,15 @@ export class WebsiteStack extends cdk.Stack {
             cognitoDomain: { domainPrefix: "wbertore-website" }
         });
 
+        // CSRF secret for HMAC signing (persists across deployments)
+        const csrfSecret = new Secret(this, "csrf-secret", {
+            secretName: "website-csrf-secret",
+            generateSecretString: {
+                excludePunctuation: true,
+                passwordLength: 32,
+            }
+        });
+
         const websiteBackend = new Function(this, "website-backend", {
             code: Code.fromBucket(props.rustArtifactBucket, rustArtifactKey.valueAsString),
             runtime: Runtime.PROVIDED_AL2023,
@@ -62,7 +72,8 @@ export class WebsiteStack extends cdk.Stack {
                 COGNITO_USER_POOL_ID: userPool.userPoolId,
                 COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
                 COGNITO_REGION: this.region,
-                AUTH_DOMAIN: AUTH_SUBDOMAIN
+                AUTH_DOMAIN: AUTH_SUBDOMAIN,
+                CSRF_SECRET_ARN: csrfSecret.secretArn
             }
         });
 
@@ -80,6 +91,9 @@ export class WebsiteStack extends cdk.Stack {
                     resources: [userPool.userPoolArn]
                 }));
             });
+            
+            // Grant read access to CSRF secret
+            csrfSecret.grantRead(...grantables);
         };
 
         grantWebsiteBackendPermissions([websiteBackend, localDevRole]);
