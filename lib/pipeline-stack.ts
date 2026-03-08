@@ -67,7 +67,7 @@ export class PipelineStack extends cdk.Stack {
     wave: Wave, 
     rustLambdasSource: cdk.pipelines.CodePipelineSource,
   ): FileSet {
-    const zigVersion = "zig-x86_64-linux-0.15.2";
+    const zigVersion = "zig-aarch64-linux-0.15.2";
     const rustCodeBuildStep = new CodeBuildStep("rust-build-step", {
       buildEnvironment: {
         buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_ARM_3,

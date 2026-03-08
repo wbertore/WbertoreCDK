@@ -84,6 +84,12 @@ Navigate here: https://d-9267d93f90.awsapps.com/start/
 
 ## Troubleshooting
 
+### Viewing rust-build CodeBuild logs
+To quickly view the last 100 lines of the most recent rust-build-step execution:
+```bash
+./scripts/get-rust-build-logs.sh
+```
+
 ### CodePipeline not picking up GitHub changes
 CodePipeline can sometimes take a few minutes to detect changes pushed to GitHub via CodeStar connection webhooks. If your pipeline hasn't triggered after pushing code, wait 5-10 minutes before investigating further.
 
