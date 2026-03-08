@@ -64,3 +64,20 @@ To verify the key is working run the following command, and verify you see the f
 ssh -T git@github.com
 Hi wbertore! You've successfully authenticated...
 ```
+
+## Getting aws cli credentials
+I setup this aws account to use sso via identity center.
+
+To login run the following command:
+```
+aws sso login --profile wbertore-admin
+```
+
+From there on you can run commands in the cli specifiying the profile
+```
+aws sts get-caller-identity --profile wbertore-admin
+```
+
+## Logging into the aws console
+You can also use SSO to login to the aws account.
+Navigate here: https://d-9267d93f90.awsapps.com/start/
