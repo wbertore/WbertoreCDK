@@ -8,6 +8,7 @@ import { ApiMapping, DomainName, EndpointType, HttpApi, HttpMethod, HttpNoneAuth
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { ApiGatewayv2DomainProperties } from 'aws-cdk-lib/aws-route53-targets';
+import { UserPool, UserPoolClient, UserPoolDomain } from 'aws-cdk-lib/aws-cognito';
 
 export interface WebsiteStackProps extends cdk.StackProps {
     rustArtifactBucket: IBucket,
@@ -16,6 +17,7 @@ export interface WebsiteStackProps extends cdk.StackProps {
 
 const ROOT_DOMAIN = "wbertore.dev"
 const WEBSITE_DOMAIN = `website.${ROOT_DOMAIN}`
+const AUTH_SUBDOMAIN = `auth.${WEBSITE_DOMAIN}`
 
 export class WebsiteStack extends cdk.Stack {
     constructor(scope: Construct, id: string, props: WebsiteStackProps) {
@@ -23,18 +25,43 @@ export class WebsiteStack extends cdk.Stack {
         // HACK: retrieve the runtime artifact key from the stack parameter overide we set
         // in the pipeline. 
         const rustArtifactKey = new cdk.CfnParameter(this, RUST_ARTIFACT_S3_KEY_PARAM_NAME);
+        // Cognito User Pool for authentication
+        const userPool = new UserPool(this, "website-user-pool", {
+            userPoolName: "website-users",
+            selfSignUpEnabled: false,
+            signInAliases: { email: true },
+            autoVerify: { email: true },
+            removalPolicy: cdk.RemovalPolicy.DESTROY
+        });
+
+        const userPoolClient = new UserPoolClient(this, "website-user-pool-client", {
+            userPool,
+            authFlows: { userPassword: true, userSrp: true },
+            oAuth: {
+                flows: { authorizationCodeGrant: true },
+                scopes: [{ scopeName: "openid" }, { scopeName: "email" }, { scopeName: "profile" }],
+                callbackUrls: [`https://${AUTH_SUBDOMAIN}/oauth2/idpresponse`]
+            }
+        });
+
+        const userPoolDomain = new UserPoolDomain(this, "website-user-pool-domain", {
+            userPool,
+            cognitoDomain: { domainPrefix: "wbertore-website" }
+        });
+
         const websiteBackend = new Function(this, "website-backend", {
             code: Code.fromBucket(props.rustArtifactBucket, rustArtifactKey.valueAsString),
-            // As of 2024-04-07, the rust bootstrap requires GLIBC_2.28. AL2 has too old of a version.
-            // Try using AL2023:
-            // https://docs.aws.amazon.com/linux/al2023/ug/compare-with-al2.html#glibc-gcc-and-binutils
             runtime: Runtime.PROVIDED_AL2023,
             architecture: Architecture.ARM_64,
             timeout: cdk.Duration.seconds(60),
-            // HUH???? apparently other people are doing this:
-            // https://medium.com/techhappily/rust-based-aws-lambda-with-aws-cdk-deployment-14a9a8652d62
             handler: "does_not_matter",
             functionName: "website-backend",
+            environment: {
+                COGNITO_USER_POOL_ID: userPool.userPoolId,
+                COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
+                COGNITO_REGION: this.region,
+                AUTH_DOMAIN: AUTH_SUBDOMAIN
+            }
         });
 
         const websiteBackendAlias = new Alias(this, "website-backend-alias", {
@@ -64,6 +91,7 @@ export class WebsiteStack extends cdk.Stack {
 
         const certificate = new Certificate(this, "website-certificate", {
             domainName: WEBSITE_DOMAIN,
+            subjectAlternativeNames: [AUTH_SUBDOMAIN],
             validation: CertificateValidation.fromDns(rootHostedZone)
         });
 
@@ -81,6 +109,30 @@ export class WebsiteStack extends cdk.Stack {
             zone: rootHostedZone,
             recordName: WEBSITE_DOMAIN,
             target: RecordTarget.fromAlias(new ApiGatewayv2DomainProperties(websiteDomain.regionalDomainName, websiteDomain.regionalHostedZoneId))
+        });
+
+        // Authenticated subdomain
+        const authDomain = new DomainName(this, 'auth-domain', {
+            domainName: AUTH_SUBDOMAIN,
+            certificate: certificate,
+            endpointType: EndpointType.REGIONAL
+        });
+        new ApiMapping(this, "auth-api-mapping", {
+            api: websiteApi,
+            domainName: authDomain,
+            stage: websiteApi.defaultStage
+        });
+        new ARecord(this, "auth-a-record", {
+            zone: rootHostedZone,
+            recordName: AUTH_SUBDOMAIN,
+            target: RecordTarget.fromAlias(new ApiGatewayv2DomainProperties(authDomain.regionalDomainName, authDomain.regionalHostedZoneId))
+        });
+
+        new cdk.CfnOutput(this, "UserPoolId", { value: userPool.userPoolId });
+        new cdk.CfnOutput(this, "UserPoolClientId", { value: userPoolClient.userPoolClientId });
+        new cdk.CfnOutput(this, "UserPoolRegion", { value: this.region });
+        new cdk.CfnOutput(this, "CognitoLoginUrl", { 
+            value: `https://${userPoolDomain.domainName}.auth.${this.region}.amazoncognito.com/login?client_id=${userPoolClient.userPoolClientId}&response_type=code&redirect_uri=https://${AUTH_SUBDOMAIN}/oauth2/idpresponse`
         });
     }
 }
