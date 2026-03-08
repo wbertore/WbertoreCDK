@@ -81,3 +81,18 @@ aws sts get-caller-identity --profile wbertore-admin
 ## Logging into the aws console
 You can also use SSO to login to the aws account.
 Navigate here: https://d-9267d93f90.awsapps.com/start/
+
+## Troubleshooting
+
+### CodePipeline not picking up GitHub changes
+CodePipeline can sometimes take a few minutes to detect changes pushed to GitHub via CodeStar connection webhooks. If your pipeline hasn't triggered after pushing code, wait 5-10 minutes before investigating further.
+
+If the delay persists, check:
+- CodeStar connection status: `aws codestar-connections list-connections --profile wbertore-admin`
+- Pipeline execution history: `aws codepipeline list-pipeline-executions --pipeline-name Pipeline --profile wbertore-admin`
+- GitHub webhook delivery history in your repo settings (Settings → Webhooks)
+
+You can also manually trigger the pipeline:
+```bash
+aws codepipeline start-pipeline-execution --name Pipeline --profile wbertore-admin
+```
