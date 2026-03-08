@@ -84,6 +84,17 @@ Navigate here: https://d-9267d93f90.awsapps.com/start/
 
 ## Troubleshooting
 
+### Viewing Lambda logs
+To view the last 100 lines from the website-backend Lambda:
+```bash
+./scripts/get-lambda-logs.sh
+```
+
+Or specify a different number of lines:
+```bash
+./scripts/get-lambda-logs.sh 200
+```
+
 ### Viewing rust-build CodeBuild logs
 To quickly view the last 100 lines of the most recent rust-build-step execution:
 ```bash

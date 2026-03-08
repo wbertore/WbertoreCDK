@@ -11,6 +11,7 @@ import { ApiGatewayv2DomainProperties } from 'aws-cdk-lib/aws-route53-targets';
 import { UserPool, UserPoolClient, UserPoolDomain } from 'aws-cdk-lib/aws-cognito';
 import { PolicyStatement, Role, AccountRootPrincipal, ManagedPolicy, IGrantable } from 'aws-cdk-lib/aws-iam';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
+import * as logs from 'aws-cdk-lib/aws-logs';
 
 export interface WebsiteStackProps extends cdk.StackProps {
     rustArtifactBucket: IBucket,
@@ -81,8 +82,10 @@ export class WebsiteStack extends cdk.Stack {
                 COGNITO_USER_POOL_DOMAIN: userPoolDomain.domainName,
                 COGNITO_REGION: this.region,
                 AUTH_DOMAIN: AUTH_SUBDOMAIN,
-                CSRF_SECRET_ARN: csrfSecret.secretArn
-            }
+                CSRF_SECRET_ARN: csrfSecret.secretArn,
+                RUST_LOG: "debug",
+            },
+            logRetention: logs.RetentionDays.ONE_WEEK,
         });
 
         const localDevRole = new Role(this, "localDevRole", {
