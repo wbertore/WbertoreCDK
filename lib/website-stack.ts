@@ -43,7 +43,10 @@ export class WebsiteStack extends cdk.Stack {
             oAuth: {
                 flows: { authorizationCodeGrant: true },
                 scopes: [{ scopeName: "openid" }, { scopeName: "email" }, { scopeName: "profile" }],
-                callbackUrls: [`https://${AUTH_SUBDOMAIN}/oauth2/idpresponse`]
+                callbackUrls: [
+                    `https://${AUTH_SUBDOMAIN}/oauth2/idpresponse`,
+                    'http://localhost:9000/oauth2/idpresponse'
+                ]
             }
         });
 
