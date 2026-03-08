@@ -111,7 +111,6 @@ export class PipelineStack extends cdk.Stack {
             "$HOME/.cargo/**/*",
             "$HOME/.rustup/**/*",
             "target/**/*",
-            "recipe.json",
             zigVersion + "/**/*"
           ]
         }

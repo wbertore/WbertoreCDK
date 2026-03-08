@@ -74,6 +74,7 @@ export class WebsiteStack extends cdk.Stack {
             environment: {
                 COGNITO_USER_POOL_ID: userPool.userPoolId,
                 COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
+                COGNITO_USER_POOL_DOMAIN: userPoolDomain.domainName,
                 COGNITO_REGION: this.region,
                 AUTH_DOMAIN: AUTH_SUBDOMAIN,
                 CSRF_SECRET_ARN: csrfSecret.secretArn
