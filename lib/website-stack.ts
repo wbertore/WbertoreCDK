@@ -33,7 +33,11 @@ export class WebsiteStack extends cdk.Stack {
             selfSignUpEnabled: false,
             signInAliases: { email: true },
             autoVerify: { email: true },
-            removalPolicy: cdk.RemovalPolicy.DESTROY
+            removalPolicy: cdk.RemovalPolicy.DESTROY,
+            userInvitation: {
+                emailSubject: 'You have been invited to wbertore.dev',
+                emailBody: 'Hello {username},<br><br>You have been invited to access wbertore.dev.<br><br>Your temporary password is: {####}<br><br>Please login at: https://website.wbertore.dev/auth/dashboard',
+            },
         });
 
         const userPoolClient = new UserPoolClient(this, "website-user-pool-client", {
