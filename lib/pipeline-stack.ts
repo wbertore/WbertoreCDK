@@ -70,6 +70,8 @@ export class PipelineStack extends cdk.Stack {
     const zigVersion = "zig-x86_64-linux-0.15.2";
     const rustCodeBuildStep = new CodeBuildStep("rust-build-step", {
       installCommands: [
+        // Install cross-compiler for ARM64 target
+        "yum install -y gcc-aarch64-linux-gnu",
         // Install rustup: https://forge.rust-lang.org/infra/other-installation-methods.html#other-ways-to-install-rustup
         // `--` stops option processing on `sh` so `-` is passed to the downloaded and invoked script.
         "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
