@@ -67,7 +67,7 @@ export class PipelineStack extends cdk.Stack {
     rustLambdasSource: cdk.pipelines.CodePipelineSource,
   ): FileSet {
     const zigFolderPrefix = "zig-linux-x86_64"
-    const zigVersion = `${zigFolderPrefix}-0.12.0-dev.3539+23f729aec`;
+    const zigVersion = `${zigFolderPrefix}-0.16.0-dev.2682+02142a54d`;
     const rustCodeBuildStep = new CodeBuildStep("rust-build-step", {
       installCommands: [
         // Install rustup: https://forge.rust-lang.org/infra/other-installation-methods.html#other-ways-to-install-rustup
