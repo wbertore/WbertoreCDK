@@ -81,7 +81,7 @@ export class PipelineStack extends cdk.Stack {
         "curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash",
         // Pull down pre-compiled binary for building rust lambdas: https://www.cargo-lambda.info/guide/installation.html#binary-releases
         // `-y` to auto-accept the install confirmation prompt
-        "cargo binstall -y cargo-lambda", 
+        "cargo binstall -y cargo-lambda cargo-chef", 
         // Install zig, which is a dependency of cargo-lambda. Using stable release for reliability.
         "curl --proto '=https' --tlsv1.2 -sSf https://ziglang.org/download/0.15.2/" + zigVersion + ".tar.xz | tar -x -J",
         "export PATH=$PATH:$(pwd -P)/" + zigVersion,
@@ -92,6 +92,8 @@ export class PipelineStack extends cdk.Stack {
       // For now this is outputting a 17.3 MB zip file. If it breaches 50MB we'll need to offload this to s3 and give Lambda a pointer to s3.
       commands: [
         "echo $CODEBUILD_RESOLVED_SOURCE_VERSION",
+        "cargo chef prepare --recipe-path recipe.json",
+        "cargo chef cook --release --recipe-path recipe.json --target aarch64-unknown-linux-gnu",
         "cargo test",
         "cargo lambda build --release --arm64"
       ],
@@ -109,6 +111,7 @@ export class PipelineStack extends cdk.Stack {
             "$HOME/.cargo/**/*",
             "$HOME/.rustup/**/*",
             "target/**/*",
+            "recipe.json",
             zigVersion + "/**/*"
           ]
         }
