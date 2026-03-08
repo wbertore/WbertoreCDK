@@ -90,10 +90,8 @@ export class WebsiteStack extends cdk.Stack {
                     actions: ['cognito-idp:DescribeUserPoolClient'],
                     resources: [userPool.userPoolArn]
                 }));
+                csrfSecret.grantRead(grantable);
             });
-            
-            // Grant read access to CSRF secret
-            csrfSecret.grantRead(...grantables);
         };
 
         grantWebsiteBackendPermissions([websiteBackend, localDevRole]);
