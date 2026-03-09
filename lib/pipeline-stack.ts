@@ -95,9 +95,10 @@ export class PipelineStack extends cdk.Stack {
       // https://github.com/awslabs/aws-lambda-rust-runtime?tab=readme-ov-file#12-build-your-lambda-functions
       // For now this is outputting a 17.3 MB zip file. If it breaches 50MB we'll need to offload this to s3 and give Lambda a pointer to s3.
       commands: [
-        "cargo lambda build --release",
+        "cargo lambda build --release --arm64",
         "ls -lh target/lambda/bootstrap/",
-        "file target/lambda/bootstrap/bootstrap"
+        "file target/lambda/bootstrap/bootstrap",
+        "readelf -d target/lambda/bootstrap/bootstrap | grep NEEDED || echo 'No dynamic dependencies'"
       ],
       input: rustLambdasSource,
       // TODO this is eventually going to be a tree where each entry point has a different parent.
