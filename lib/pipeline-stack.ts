@@ -99,7 +99,9 @@ export class PipelineStack extends cdk.Stack {
         "cargo chef prepare --recipe-path recipe.json",
         "cargo chef cook --release --recipe-path recipe.json",
         "cargo test",
-        "cargo lambda build --release --arm64"
+        "rm -rf target/lambda",
+        "cargo lambda build --release --arm64",
+        "ls -lh target/lambda/bootstrap/"
       ],
       input: rustLambdasSource,
       // TODO this is eventually going to be a tree where each entry point has a different parent.
