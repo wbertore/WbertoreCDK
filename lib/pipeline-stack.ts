@@ -67,12 +67,9 @@ export class PipelineStack extends cdk.Stack {
     wave: Wave, 
     rustLambdasSource: cdk.pipelines.CodePipelineSource,
   ): FileSet {
-    const zigVersion = "zig-aarch64-linux-0.15.2";
+    const zigFolderPrefix = "zig-linux-x86_64"
+    const zigVersion = `${zigFolderPrefix}-0.12.0-dev.3539+23f729aec`;
     const rustCodeBuildStep = new CodeBuildStep("rust-build-step", {
-      buildEnvironment: {
-        buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_ARM_3,
-        computeType: codebuild.ComputeType.SMALL,
-      },
       installCommands: [
         // Install rustup: https://forge.rust-lang.org/infra/other-installation-methods.html#other-ways-to-install-rustup
         // `--` stops option processing on `sh` so `-` is passed to the downloaded and invoked script.
@@ -86,19 +83,20 @@ export class PipelineStack extends cdk.Stack {
         // Pull down pre-compiled binary for building rust lambdas: https://www.cargo-lambda.info/guide/installation.html#binary-releases
         // `-y` to auto-accept the install confirmation prompt
         "cargo binstall -y cargo-lambda", 
-        // Install zig, which is a dependency of cargo-lambda. Using stable release for reliability.
-        "curl --proto '=https' --tlsv1.2 -sSf https://ziglang.org/download/0.15.2/" + zigVersion + ".tar.xz | tar -x -J",
-        "export PATH=$PATH:$(pwd -P)/" + zigVersion,
-        // Add the arm64 musl target for static linking
-        "rustup target add aarch64-unknown-linux-musl"
+        // Install zig, which is a dependency of cargo-lambda
+        "curl --proto '=https' --tlsv1.2 -sSf https://ziglang.org/builds/" + zigVersion + ".tar.xz | tar -x -J",
+        // To avoid invalid characters in PATH, rename the folder. Then add the shortened folder to the PATH.
+        "mv './" + zigVersion + "' ./" + zigFolderPrefix,
+        "export PATH=$PATH:$(pwd -P)/'" + zigFolderPrefix + "'",
+        // Add the arm64 Al2 Linux target. copied from a local build error trying to run the command.
+        "rustup target add aarch64-unknown-linux-gnu"
       ],
       // https://github.com/awslabs/aws-lambda-rust-runtime?tab=readme-ov-file#12-build-your-lambda-functions
       // For now this is outputting a 17.3 MB zip file. If it breaches 50MB we'll need to offload this to s3 and give Lambda a pointer to s3.
       commands: [
-        "cargo lambda build --release --target aarch64-unknown-linux-musl",
-        "ls -lh target/lambda/bootstrap/",
-        "file target/lambda/bootstrap/bootstrap",
-        "readelf -d target/lambda/bootstrap/bootstrap | grep NEEDED || echo 'No dynamic dependencies'"
+        "echo $CODEBUILD_RESOLVED_SOURCE_VERSION",
+        "cargo test",
+        "cargo lambda build --release --arm64"
       ],
       input: rustLambdasSource,
       // TODO this is eventually going to be a tree where each entry point has a different parent.
@@ -106,18 +104,7 @@ export class PipelineStack extends cdk.Stack {
       //                | my-rust-lambda-1/bootstrap.zip
       //                | my-rust-lambda-2/bootstrap.zip
       // This is the primary output of the step. In theory we can reference this in other steps...
-      primaryOutputDirectory: "./target/lambda/bootstrap",
-      cache: codebuild.Cache.local(codebuild.LocalCacheMode.CUSTOM),
-      partialBuildSpec: codebuild.BuildSpec.fromObject({
-        cache: {
-          paths: [
-            "$HOME/.cargo/**/*",
-            "$HOME/.rustup/**/*",
-            "target/**/*",
-            zigVersion + "/**/*"
-          ]
-        }
-      })
+      primaryOutputDirectory: "./target/lambda/WbertoreRustLambdas",
     });
 
     wave.addPre(rustCodeBuildStep);
