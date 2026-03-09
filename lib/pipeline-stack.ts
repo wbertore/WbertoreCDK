@@ -89,13 +89,13 @@ export class PipelineStack extends cdk.Stack {
         // Install zig, which is a dependency of cargo-lambda. Using stable release for reliability.
         "curl --proto '=https' --tlsv1.2 -sSf https://ziglang.org/download/0.15.2/" + zigVersion + ".tar.xz | tar -x -J",
         "export PATH=$PATH:$(pwd -P)/" + zigVersion,
-        // Add the arm64 Al2 Linux target. copied from a local build error trying to run the command.
-        "rustup target add aarch64-unknown-linux-gnu"
+        // Add the arm64 musl target for static linking
+        "rustup target add aarch64-unknown-linux-musl"
       ],
       // https://github.com/awslabs/aws-lambda-rust-runtime?tab=readme-ov-file#12-build-your-lambda-functions
       // For now this is outputting a 17.3 MB zip file. If it breaches 50MB we'll need to offload this to s3 and give Lambda a pointer to s3.
       commands: [
-        "cargo lambda build --release --arm64",
+        "cargo lambda build --release --target aarch64-unknown-linux-musl",
         "ls -lh target/lambda/bootstrap/",
         "file target/lambda/bootstrap/bootstrap",
         "readelf -d target/lambda/bootstrap/bootstrap | grep NEEDED || echo 'No dynamic dependencies'"
