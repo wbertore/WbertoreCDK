@@ -67,8 +67,12 @@ export class PipelineStack extends cdk.Stack {
     wave: Wave, 
     rustLambdasSource: cdk.pipelines.CodePipelineSource,
   ): FileSet {
-    const zigVersion = "zig-x86_64-linux-0.15.2";
+    const zigVersion = "zig-aarch64-linux-0.15.2";
     const rustCodeBuildStep = new CodeBuildStep("rust-build-step", {
+      buildEnvironment: {
+        buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_ARM_3,
+        computeType: codebuild.ComputeType.SMALL,
+      },
       installCommands: [
         // Install rustup: https://forge.rust-lang.org/infra/other-installation-methods.html#other-ways-to-install-rustup
         // `--` stops option processing on `sh` so `-` is passed to the downloaded and invoked script.
@@ -85,15 +89,12 @@ export class PipelineStack extends cdk.Stack {
         // Install zig, which is a dependency of cargo-lambda. Using stable release for reliability.
         "curl --proto '=https' --tlsv1.2 -sSf https://ziglang.org/download/0.15.2/" + zigVersion + ".tar.xz | tar -x -J",
         "export PATH=$PATH:$(pwd -P)/" + zigVersion,
-        // Add the arm64 Al2 Linux target. copied from a local build error trying to run the command.
-        "rustup target add aarch64-unknown-linux-gnu"
+        // Add the arm64 musl target for static linking
+        "rustup target add aarch64-unknown-linux-musl"
       ],
       // https://github.com/awslabs/aws-lambda-rust-runtime?tab=readme-ov-file#12-build-your-lambda-functions
-      // For now this is outputting a 17.3 MB zip file. If it breaches 50MB we'll need to offload this to s3 and give Lambda a pointer to s3.
       commands: [
-        "echo $CODEBUILD_RESOLVED_SOURCE_VERSION",
-        "cargo test",
-        "cargo lambda build --release --arm64"
+        "cargo lambda build --release --target aarch64-unknown-linux-musl"
       ],
       input: rustLambdasSource,
       // TODO this is eventually going to be a tree where each entry point has a different parent.
