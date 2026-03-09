@@ -100,6 +100,7 @@ export class PipelineStack extends cdk.Stack {
         "cargo chef cook --release --recipe-path recipe.json",
         "cargo test",
         "rm -rf target/lambda",
+        "cargo clean -p WbertoreRustLambdas",
         "cargo lambda build --release",
         "echo '=== Output directory contents ==='",
         "ls -lh target/lambda/bootstrap/",
