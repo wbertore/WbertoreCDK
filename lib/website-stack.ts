@@ -84,6 +84,8 @@ export class WebsiteStack extends cdk.Stack {
                 AUTH_DOMAIN: AUTH_SUBDOMAIN,
                 CSRF_SECRET_ARN: csrfSecret.secretArn,
                 RUST_LOG: "debug",
+                RUST_BACKTRACE: "1",
+                AWS_LAMBDA_LOG_LEVEL: "DEBUG",
             },
             logRetention: logs.RetentionDays.ONE_WEEK,
         });

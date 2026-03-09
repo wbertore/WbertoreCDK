@@ -101,7 +101,16 @@ export class PipelineStack extends cdk.Stack {
         "cargo test",
         "rm -rf target/lambda",
         "cargo lambda build --release",
-        "ls -lh target/lambda/bootstrap/"
+        "echo '=== Output directory contents ==='",
+        "ls -lh target/lambda/bootstrap/",
+        "echo '=== Binary file type ==='",
+        "file target/lambda/bootstrap/bootstrap",
+        "echo '=== Binary size uncompressed ==='",
+        "du -h target/lambda/bootstrap/bootstrap",
+        "echo '=== Checking for application symbols ==='",
+        "strings target/lambda/bootstrap/bootstrap | grep -i 'cognito\\|oauth\\|axum' | head -5 || echo 'No app symbols found!'",
+        "echo '=== Cargo lambda version ==='",
+        "cargo lambda --version"
       ],
       input: rustLambdasSource,
       // TODO this is eventually going to be a tree where each entry point has a different parent.
