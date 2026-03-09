@@ -85,7 +85,7 @@ export class PipelineStack extends cdk.Stack {
         "curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash",
         // Pull down pre-compiled binary for building rust lambdas: https://www.cargo-lambda.info/guide/installation.html#binary-releases
         // `-y` to auto-accept the install confirmation prompt
-        "cargo binstall -y cargo-lambda cargo-chef", 
+        "cargo binstall -y cargo-lambda", 
         // Install zig, which is a dependency of cargo-lambda. Using stable release for reliability.
         "curl --proto '=https' --tlsv1.2 -sSf https://ziglang.org/download/0.15.2/" + zigVersion + ".tar.xz | tar -x -J",
         "export PATH=$PATH:$(pwd -P)/" + zigVersion,
@@ -95,22 +95,9 @@ export class PipelineStack extends cdk.Stack {
       // https://github.com/awslabs/aws-lambda-rust-runtime?tab=readme-ov-file#12-build-your-lambda-functions
       // For now this is outputting a 17.3 MB zip file. If it breaches 50MB we'll need to offload this to s3 and give Lambda a pointer to s3.
       commands: [
-        "echo $CODEBUILD_RESOLVED_SOURCE_VERSION",
-        "cargo chef prepare --recipe-path recipe.json",
-        "cargo chef cook --release --recipe-path recipe.json",
-        "cargo test",
-        "rm -rf target/lambda",
-        "cargo clean -p WbertoreRustLambdas",
-        "cargo build --release --bin bootstrap",
-        "echo '=== Regular cargo build output ==='",
-        "ls -lh target/release/bootstrap",
-        "file target/release/bootstrap",
-        "strings target/release/bootstrap | grep -i 'cognito\\|oauth\\|axum' | head -3 || echo 'No symbols in cargo build output'",
         "cargo lambda build --release",
-        "echo '=== Cargo lambda output ==='",
         "ls -lh target/lambda/bootstrap/",
-        "file target/lambda/bootstrap/bootstrap",
-        "strings target/lambda/bootstrap/bootstrap | grep -i 'cognito\\|oauth\\|axum' | head -3 || echo 'No symbols in cargo lambda output'"
+        "file target/lambda/bootstrap/bootstrap"
       ],
       input: rustLambdasSource,
       // TODO this is eventually going to be a tree where each entry point has a different parent.
