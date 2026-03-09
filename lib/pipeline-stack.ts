@@ -67,8 +67,7 @@ export class PipelineStack extends cdk.Stack {
     wave: Wave, 
     rustLambdasSource: cdk.pipelines.CodePipelineSource,
   ): FileSet {
-    const zigFolderPrefix = "zig-linux-x86_64"
-    const zigVersion = `${zigFolderPrefix}-0.12.0-dev.3539+23f729aec`;
+    const zigVersion = "zig-linux-x86_64-0.15.2";
     const rustCodeBuildStep = new CodeBuildStep("rust-build-step", {
       installCommands: [
         // Install rustup: https://forge.rust-lang.org/infra/other-installation-methods.html#other-ways-to-install-rustup
@@ -83,11 +82,9 @@ export class PipelineStack extends cdk.Stack {
         // Pull down pre-compiled binary for building rust lambdas: https://www.cargo-lambda.info/guide/installation.html#binary-releases
         // `-y` to auto-accept the install confirmation prompt
         "cargo binstall -y cargo-lambda", 
-        // Install zig, which is a dependency of cargo-lambda
-        "curl --proto '=https' --tlsv1.2 -sSf https://ziglang.org/builds/" + zigVersion + ".tar.xz | tar -x -J",
-        // To avoid invalid characters in PATH, rename the folder. Then add the shortened folder to the PATH.
-        "mv './" + zigVersion + "' ./" + zigFolderPrefix,
-        "export PATH=$PATH:$(pwd -P)/'" + zigFolderPrefix + "'",
+        // Install zig, which is a dependency of cargo-lambda. Using stable release for reliability.
+        "curl --proto '=https' --tlsv1.2 -sSf https://ziglang.org/download/0.15.2/" + zigVersion + ".tar.xz | tar -x -J",
+        "export PATH=$PATH:$(pwd -P)/" + zigVersion,
         // Add the arm64 Al2 Linux target. copied from a local build error trying to run the command.
         "rustup target add aarch64-unknown-linux-gnu"
       ],
