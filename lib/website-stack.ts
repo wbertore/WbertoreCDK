@@ -49,7 +49,7 @@ export class WebsiteStack extends cdk.Stack {
                 flows: { authorizationCodeGrant: true },
                 scopes: [{ scopeName: "openid" }, { scopeName: "email" }, { scopeName: "profile" }],
                 callbackUrls: [
-                    `https://${AUTH_SUBDOMAIN}/oauth2/idpresponse`,
+                    `https://${WEBSITE_DOMAIN}/oauth2/idpresponse`,
                     'https://localhost:9000/oauth2/idpresponse'
                 ]
             }
@@ -81,7 +81,7 @@ export class WebsiteStack extends cdk.Stack {
                 COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
                 COGNITO_USER_POOL_DOMAIN: userPoolDomain.domainName,
                 COGNITO_REGION: this.region,
-                AUTH_DOMAIN: AUTH_SUBDOMAIN,
+                AUTH_DOMAIN: WEBSITE_DOMAIN,
                 CSRF_SECRET_ARN: csrfSecret.secretArn,
                 RUST_LOG: "debug",
                 RUST_BACKTRACE: "1",
@@ -184,7 +184,7 @@ export class WebsiteStack extends cdk.Stack {
         new cdk.CfnOutput(this, "UserPoolClientId", { value: userPoolClient.userPoolClientId });
         new cdk.CfnOutput(this, "UserPoolRegion", { value: this.region });
         new cdk.CfnOutput(this, "CognitoLoginUrl", { 
-            value: `https://${userPoolDomain.domainName}.auth.${this.region}.amazoncognito.com/login?client_id=${userPoolClient.userPoolClientId}&response_type=code&redirect_uri=https://${AUTH_SUBDOMAIN}/oauth2/idpresponse`
+            value: `https://${userPoolDomain.domainName}.auth.${this.region}.amazoncognito.com/login?client_id=${userPoolClient.userPoolClientId}&response_type=code&redirect_uri=https://${WEBSITE_DOMAIN}/oauth2/idpresponse`
         });
     }
 }
