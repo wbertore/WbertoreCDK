@@ -86,6 +86,7 @@ export class WebsiteStack extends cdk.Stack {
                 RUST_LOG: "debug",
                 RUST_BACKTRACE: "1",
                 AWS_LAMBDA_LOG_LEVEL: "DEBUG",
+                CODE_VERSION: rustArtifactKey.valueAsString,
             },
             logRetention: logs.RetentionDays.ONE_WEEK,
         });
