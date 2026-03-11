@@ -67,7 +67,6 @@ export class PipelineStack extends cdk.Stack {
     wave: Wave, 
     rustLambdasSource: cdk.pipelines.CodePipelineSource,
   ): FileSet {
-    const zigVersion = "zig-aarch64-linux-0.15.2";
     const rustCodeBuildStep = new CodeBuildStep("rust-build-step", {
       buildEnvironment: {
         buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_ARM_3,
@@ -85,16 +84,12 @@ export class PipelineStack extends cdk.Stack {
         "curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash",
         // Pull down pre-compiled binary for building rust lambdas: https://www.cargo-lambda.info/guide/installation.html#binary-releases
         // `-y` to auto-accept the install confirmation prompt
-        "cargo binstall -y cargo-lambda", 
-        // Install zig, which is a dependency of cargo-lambda. Using stable release for reliability.
-        "curl --proto '=https' --tlsv1.2 -sSf https://ziglang.org/download/0.15.2/" + zigVersion + ".tar.xz | tar -x -J",
-        "export PATH=$PATH:$(pwd -P)/" + zigVersion,
-        // Add the arm64 musl target for static linking
-        "rustup target add aarch64-unknown-linux-musl"
+        "cargo binstall -y cargo-lambda"
       ],
       // https://github.com/awslabs/aws-lambda-rust-runtime?tab=readme-ov-file#12-build-your-lambda-functions
+      // Building natively on AL2023 ARM64 to match Lambda runtime, avoiding cross-compilation and zig
       commands: [
-        "cargo lambda build --release --target aarch64-unknown-linux-musl --compiler cargo"
+        "cargo lambda build --release --compiler cargo"
       ],
       input: rustLambdasSource,
       // TODO this is eventually going to be a tree where each entry point has a different parent.
