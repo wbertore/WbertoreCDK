@@ -20,7 +20,6 @@ export interface WebsiteStackProps extends cdk.StackProps {
 
 const ROOT_DOMAIN = "wbertore.dev"
 const WEBSITE_DOMAIN = `website.${ROOT_DOMAIN}`
-const AUTH_SUBDOMAIN = `auth.${WEBSITE_DOMAIN}`
 
 export class WebsiteStack extends cdk.Stack {
     constructor(scope: Construct, id: string, props: WebsiteStackProps) {
@@ -161,23 +160,6 @@ export class WebsiteStack extends cdk.Stack {
             zone: rootHostedZone,
             recordName: WEBSITE_DOMAIN,
             target: RecordTarget.fromAlias(new ApiGatewayv2DomainProperties(websiteDomain.regionalDomainName, websiteDomain.regionalHostedZoneId))
-        });
-
-        // Authenticated subdomain
-        const authDomain = new DomainName(this, 'auth-domain', {
-            domainName: AUTH_SUBDOMAIN,
-            certificate: certificate,
-            endpointType: EndpointType.REGIONAL
-        });
-        new ApiMapping(this, "auth-api-mapping", {
-            api: websiteApi,
-            domainName: authDomain,
-            stage: websiteApi.defaultStage
-        });
-        new ARecord(this, "auth-a-record", {
-            zone: rootHostedZone,
-            recordName: AUTH_SUBDOMAIN,
-            target: RecordTarget.fromAlias(new ApiGatewayv2DomainProperties(authDomain.regionalDomainName, authDomain.regionalHostedZoneId))
         });
 
         new cdk.CfnOutput(this, "UserPoolId", { value: userPool.userPoolId });
