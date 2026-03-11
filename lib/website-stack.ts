@@ -142,7 +142,6 @@ export class WebsiteStack extends cdk.Stack {
 
         const certificate = new Certificate(this, "website-certificate", {
             domainName: WEBSITE_DOMAIN,
-            subjectAlternativeNames: [AUTH_SUBDOMAIN],
             validation: CertificateValidation.fromDns(rootHostedZone)
         });
 
