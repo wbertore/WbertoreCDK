@@ -98,6 +98,18 @@ export class PipelineStack extends cdk.Stack {
       //                | my-rust-lambda-2/bootstrap.zip
       // This is the primary output of the step. In theory we can reference this in other steps...
       primaryOutputDirectory: "./target/lambda/WbertoreRustLambdas",
+      cache: codebuild.Cache.local(codebuild.LocalCacheMode.CUSTOM),
+      partialBuildSpec: codebuild.BuildSpec.fromObject({
+        cache: {
+          paths: [
+            "$HOME/.cargo/**/*",
+            "$HOME/.rustup/**/*",
+            "target/release/.fingerprint/**/*",
+            "target/release/build/**/*",
+            "target/release/deps/**/*"
+          ]
+        }
+      })
     });
 
     wave.addPre(rustCodeBuildStep);
