@@ -16,16 +16,31 @@ export class DeploymentBucket extends Bucket {
             environment: { BUCKET_NAME: bucketName },
             code: Code.fromInline(`
                 const { S3Client, ListObjectsV2Command, DeleteObjectsCommand } = require("@aws-sdk/client-s3");
+                const { CodePipelineClient, PutJobSuccessResultCommand, PutJobFailureResultCommand } = require("@aws-sdk/client-codepipeline");
                 const s3 = new S3Client();
-                exports.handler = async () => {
-                    const { Contents = [] } = await s3.send(new ListObjectsV2Command({ Bucket: process.env.BUCKET_NAME }));
-                    const sorted = Contents.sort((a, b) => b.LastModified - a.LastModified);
-                    const toDelete = sorted.slice(3);
-                    if (!toDelete.length) return;
-                    await s3.send(new DeleteObjectsCommand({
-                        Bucket: process.env.BUCKET_NAME,
-                        Delete: { Objects: toDelete.map(o => ({ Key: o.Key })) }
-                    }));
+                const cp = new CodePipelineClient();
+                exports.handler = async (event) => {
+                    const jobId = event["CodePipeline.job"].id;
+                    try {
+                        const { Contents = [] } = await s3.send(new ListObjectsV2Command({ Bucket: process.env.BUCKET_NAME }));
+                        const sorted = Contents.sort((a, b) => b.LastModified - a.LastModified);
+                        const toRetain = sorted.slice(0, 3);
+                        const toDelete = sorted.slice(3);
+                        console.log("Retaining:", toRetain.map(o => o.Key));
+                        console.log("Deleting:", toDelete.map(o => o.Key));
+                        if (toDelete.length) {
+                            await s3.send(new DeleteObjectsCommand({
+                                Bucket: process.env.BUCKET_NAME,
+                                Delete: { Objects: toDelete.map(o => ({ Key: o.Key })) }
+                            }));
+                        }
+                        await cp.send(new PutJobSuccessResultCommand({ jobId }));
+                    } catch (err) {
+                        await cp.send(new PutJobFailureResultCommand({
+                            jobId,
+                            failureDetails: { type: "JobFailed", message: String(err) }
+                        }));
+                    }
                 };
             `),
         });
