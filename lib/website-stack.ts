@@ -11,6 +11,7 @@ import { ApiGatewayv2DomainProperties } from 'aws-cdk-lib/aws-route53-targets';
 import { UserPool, UserPoolClient, UserPoolDomain } from 'aws-cdk-lib/aws-cognito';
 import { PolicyStatement, Role, AccountRootPrincipal, ManagedPolicy, IGrantable } from 'aws-cdk-lib/aws-iam';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
+import * as kms from 'aws-cdk-lib/aws-kms';
 import * as logs from 'aws-cdk-lib/aws-logs';
 
 export interface WebsiteStackProps extends cdk.StackProps {
@@ -60,12 +61,20 @@ export class WebsiteStack extends cdk.Stack {
         });
 
         // CSRF secret for HMAC signing (persists across deployments)
+        // TODO: remove once KMS CSRF strategy is validated in prod
         const csrfSecret = new Secret(this, "csrf-secret", {
             secretName: "website-csrf-secret",
             generateSecretString: {
                 excludePunctuation: true,
                 passwordLength: 32,
             }
+        });
+
+        const csrfKey = new kms.Key(this, "csrf-key", {
+            description: "HMAC key for CSRF token signing",
+            keySpec: kms.KeySpec.HMAC_256,
+            keyUsage: kms.KeyUsage.GENERATE_VERIFY_MAC,
+            removalPolicy: cdk.RemovalPolicy.RETAIN,
         });
 
         const websiteBackendLogGroup = new logs.LogGroup(this, "website-backend-logs", {
@@ -87,6 +96,7 @@ export class WebsiteStack extends cdk.Stack {
                 COGNITO_USER_POOL_DOMAIN: userPoolDomain.domainName,
                 COGNITO_REGION: this.region,
                 AUTH_DOMAIN: WEBSITE_DOMAIN,
+                CSRF_KMS_KEY_ID: csrfKey.keyId,
                 CSRF_SECRET_ARN: csrfSecret.secretArn,
                 RUST_LOG: "debug",
                 RUST_BACKTRACE: "1",
@@ -113,6 +123,7 @@ export class WebsiteStack extends cdk.Stack {
                     actions: ['cognito-idp:DescribeUserPoolClient'],
                     resources: [userPool.userPoolArn]
                 }));
+                csrfKey.grant(grantable, 'kms:GenerateMac', 'kms:VerifyMac');
                 csrfSecret.grantRead(grantable);
             });
         };
