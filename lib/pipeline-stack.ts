@@ -1,12 +1,14 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { CodeBuildStep, CodePipeline, CodePipelineSource, FileSet, ShellStep, Wave } from 'aws-cdk-lib/pipelines';
-import { Bucket, IBucket } from 'aws-cdk-lib/aws-s3';
+import { IBucket } from 'aws-cdk-lib/aws-s3';
 import { DeployRustArtifactsStep } from './deploy-rust-artifacts-step';
 import { ApplicationStage } from './application-stage';
 import { GlobalVariables } from 'aws-cdk-lib/aws-codepipeline';
 import { RUST_ARTIFACT_S3_KEY_PARAM_NAME, buildRustArtifactKey } from './common';
 import * as codebuild from 'aws-cdk-lib/aws-codebuild';
+import { DeploymentBucket } from './deployment-bucket';
+import { CleanupArtifactsStep } from './cleanup-artifacts-step';
 
 export class PipelineStack extends cdk.Stack {  
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -37,9 +39,7 @@ export class PipelineStack extends cdk.Stack {
       }),
     });
 
-    const rustArtifactBucket = new Bucket(this, "rust-artifacts-bucket", {
-      bucketName: "wbertore-website-rust-artifacts"
-    });
+    const rustArtifactBucket = new DeploymentBucket(this, "rust-artifacts-bucket", "wbertore-website-rust-artifacts");
     // Our artifact key derived from the pipeline executionId.
     // The executionId can only be resolved in the pipeline stack and in pipeline actions. To 
     // access this in deployed stack, it must be passed via a CfnParameter
@@ -50,6 +50,7 @@ export class PipelineStack extends cdk.Stack {
 
     const deployWave = pipeline.addWave("deploy-rust-artifact");
     this.addDeployRustArtifactsStep(deployWave, rustBuildFileSet, rustArtifactBucket, rustArtifactKey);
+    deployWave.addPost(new CleanupArtifactsStep(rustArtifactBucket.cleanupFunction));
     
     const applicationStage = new ApplicationStage(this, "website-prod", {
       rustArtifactBucket,
