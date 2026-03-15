@@ -68,6 +68,12 @@ export class WebsiteStack extends cdk.Stack {
             }
         });
 
+        const websiteBackendLogGroup = new logs.LogGroup(this, "website-backend-logs", {
+            logGroupName: "/aws/lambda/website-backend",
+            retention: logs.RetentionDays.ONE_WEEK,
+            removalPolicy: cdk.RemovalPolicy.DESTROY,
+        });
+
         const websiteBackend = new Function(this, "website-backend", {
             code: Code.fromBucket(props.rustArtifactBucket, rustArtifactKey.valueAsString),
             runtime: Runtime.PROVIDED_AL2023,
@@ -87,8 +93,12 @@ export class WebsiteStack extends cdk.Stack {
                 AWS_LAMBDA_LOG_LEVEL: "DEBUG",
                 CODE_VERSION: rustArtifactKey.valueAsString,
             },
-            logRetention: logs.RetentionDays.ONE_WEEK,
+            logGroup: websiteBackendLogGroup,
         });
+        // Safe to suppress: rustArtifactKey is dynamic, so Lambda updates are triggered by key changes
+        websiteBackend.node.addMetadata('aws:cdk:warning:suppress', [
+            '@aws-cdk/aws-lambda:codeFromBucketObjectVersionNotSpecified'
+        ]);
 
         const localDevRole = new Role(this, "localDevRole", {
             roleName: "localDevRole",
