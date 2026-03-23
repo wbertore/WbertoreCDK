@@ -7,6 +7,7 @@ import { ApplicationStage } from './application-stage';
 import { GlobalVariables } from 'aws-cdk-lib/aws-codepipeline';
 import { RUST_ARTIFACT_S3_KEY_PARAM_NAME, buildRustArtifactKey } from './common';
 import * as codebuild from 'aws-cdk-lib/aws-codebuild';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import { DeploymentBucket } from './deployment-bucket';
 import { CleanupArtifactsStep } from './cleanup-artifacts-step';
 
@@ -40,13 +41,16 @@ export class PipelineStack extends cdk.Stack {
     });
 
     const rustArtifactBucket = new DeploymentBucket(this, "rust-artifacts-bucket", "wbertore-website-rust-artifacts");
+    const buildCacheBucket = new s3.Bucket(this, "rust-build-cache-bucket", {
+      lifecycleRules: [{ expiration: cdk.Duration.days(30) }],
+    });
     // Our artifact key derived from the pipeline executionId.
     // The executionId can only be resolved in the pipeline stack and in pipeline actions. To 
     // access this in deployed stack, it must be passed via a CfnParameter
     const rustArtifactKey = buildRustArtifactKey(GlobalVariables.executionId);
 
     const buildWave = pipeline.addWave("rust-build");
-    const rustBuildFileSet = this.addCodeBuildStep(buildWave, rustLambdasSource);
+    const rustBuildFileSet = this.addCodeBuildStep(buildWave, rustLambdasSource, buildCacheBucket);
 
     const deployWave = pipeline.addWave("deploy-rust-artifact");
     this.addDeployRustArtifactsStep(deployWave, rustBuildFileSet, rustArtifactBucket, rustArtifactKey);
@@ -67,6 +71,7 @@ export class PipelineStack extends cdk.Stack {
   addCodeBuildStep(
     wave: Wave, 
     rustLambdasSource: cdk.pipelines.CodePipelineSource,
+    buildCacheBucket: IBucket,
   ): FileSet {
     const rustCodeBuildStep = new CodeBuildStep("rust-build-step", {
       buildEnvironment: {
@@ -85,7 +90,8 @@ export class PipelineStack extends cdk.Stack {
         "curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash",
         // Pull down pre-compiled binary for building rust lambdas: https://www.cargo-lambda.info/guide/installation.html#binary-releases
         // `-y` to auto-accept the install confirmation prompt
-        "cargo binstall -y cargo-lambda"
+        // Skip install if cargo-lambda is already present in the S3 cache from a previous build.
+        "command -v cargo-lambda || cargo binstall -y cargo-lambda"
       ],
       // https://github.com/awslabs/aws-lambda-rust-runtime?tab=readme-ov-file#12-build-your-lambda-functions
       // Building natively on AL2023 ARM64 to match Lambda runtime, avoiding cross-compilation and zig
@@ -99,7 +105,7 @@ export class PipelineStack extends cdk.Stack {
       //                | my-rust-lambda-2/bootstrap.zip
       // This is the primary output of the step. In theory we can reference this in other steps...
       primaryOutputDirectory: "./target/lambda/WbertoreRustLambdas",
-      cache: codebuild.Cache.local(codebuild.LocalCacheMode.CUSTOM),
+      cache: codebuild.Cache.bucket(buildCacheBucket),
       partialBuildSpec: codebuild.BuildSpec.fromObject({
         cache: {
           paths: [
