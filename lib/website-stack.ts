@@ -1,9 +1,9 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { Alias, Architecture, Code, Function, Runtime } from "aws-cdk-lib/aws-lambda";
-import { IBucket } from 'aws-cdk-lib/aws-s3';
+import { Bucket, IBucket } from 'aws-cdk-lib/aws-s3';
 import { RUST_ARTIFACT_S3_KEY_PARAM_NAME } from './common';
-import { ARecord, HostedZone, RecordTarget } from 'aws-cdk-lib/aws-route53';
+import { RECEIPT_UPLOADS_BUCKET_EXPORT } from './expense-stack';import { ARecord, HostedZone, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiMapping, DomainName, EndpointType, HttpApi, HttpMethod, HttpNoneAuthorizer } from 'aws-cdk-lib/aws-apigatewayv2';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
@@ -27,6 +27,7 @@ export class WebsiteStack extends cdk.Stack {
         // HACK: retrieve the runtime artifact key from the stack parameter overide we set
         // in the pipeline. 
         const rustArtifactKey = new cdk.CfnParameter(this, RUST_ARTIFACT_S3_KEY_PARAM_NAME);
+        const receiptUploadsBucket = Bucket.fromBucketName(this, 'receipt-uploads', cdk.Fn.importValue(RECEIPT_UPLOADS_BUCKET_EXPORT));
         // Cognito User Pool for authentication
         const userPool = new UserPool(this, "website-user-pool", {
             userPoolName: "website-users",
@@ -86,6 +87,7 @@ export class WebsiteStack extends cdk.Stack {
                 COGNITO_REGION: this.region,
                 AUTH_DOMAIN: WEBSITE_DOMAIN,
                 CSRF_KMS_KEY_ID: csrfKey.keyId,
+                RECEIPTS_BUCKET: receiptUploadsBucket.bucketName,
                 RUST_LOG: "debug",
                 RUST_BACKTRACE: "1",
                 AWS_LAMBDA_LOG_LEVEL: "DEBUG",
@@ -112,6 +114,7 @@ export class WebsiteStack extends cdk.Stack {
                     resources: [userPool.userPoolArn]
                 }));
                 csrfKey.grant(grantable, 'kms:GenerateMac', 'kms:VerifyMac');
+                receiptUploadsBucket.grantPut(grantable);
             });
         };
 
