@@ -22,5 +22,6 @@ export class ApplicationStage extends cdk.Stage {
             description: "Infrastructure for website.wbertore.dev website",
             ...props,
         });
+        this.websiteStack.addDependency(expenseStack);
     }
 }
