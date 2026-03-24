@@ -5,6 +5,7 @@ import { SqsDestination } from 'aws-cdk-lib/aws-s3-notifications';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { Function, Code, Runtime, Architecture } from 'aws-cdk-lib/aws-lambda';
+import { PolicyStatement, Role, AccountRootPrincipal, IGrantable } from 'aws-cdk-lib/aws-iam';
 import { IBucket } from 'aws-cdk-lib/aws-s3';
 import { EXPENSE_PROCESSOR_ARTIFACT_S3_KEY_PARAM_NAME, resolveArtifactKeyParams } from './common';
 
@@ -50,6 +51,11 @@ export class ExpenseStack extends cdk.Stack {
 
         receiptUploadsBucket.addEventNotification(EventType.OBJECT_CREATED, new SqsDestination(receiptUploadQueue));
 
+        const processedExpensesBucket = new Bucket(this, 'processed-expenses', {
+            removalPolicy: cdk.RemovalPolicy.DESTROY,
+            autoDeleteObjects: true,
+        });
+
         const expenseProcessor = new Function(this, 'expense-processor', {
             functionName: 'expense-processor',
             code: Code.fromBucket(props.rustArtifactBucket, artifactKeys.get(EXPENSE_PROCESSOR_ARTIFACT_S3_KEY_PARAM_NAME)!.valueAsString),
@@ -57,10 +63,36 @@ export class ExpenseStack extends cdk.Stack {
             architecture: Architecture.ARM_64,
             handler: 'does_not_matter',
             timeout: cdk.Duration.seconds(60),
+            environment: {
+                PROCESSED_EXPENSES_BUCKET: processedExpensesBucket.bucketName,
+            },
         });
 
         expenseProcessor.addEventSource(new SqsEventSource(receiptUploadQueue, {
             batchSize: 10,
         }));
+
+        const localDevRole = new Role(this, 'expense-processor-local-dev-role', {
+            roleName: 'expenseProcessorLocalDevRole',
+            assumedBy: new AccountRootPrincipal(),
+            description: 'Role for local testing with same permissions as expense-processor Lambda',
+        });
+
+        const grantExpenseProcessorPermissions = (grantables: IGrantable[]) => {
+            grantables.forEach(grantable => {
+                grantable.grantPrincipal.addToPrincipalPolicy(new PolicyStatement({
+                    actions: ['textract:AnalyzeExpense'],
+                    resources: ['*'],
+                }));
+                grantable.grantPrincipal.addToPrincipalPolicy(new PolicyStatement({
+                    actions: ['bedrock:InvokeModel'],
+                    resources: [`arn:aws:bedrock:${this.region}::foundation-model/anthropic.claude-haiku-*`],
+                }));
+                receiptUploadsBucket.grantRead(grantable);
+                processedExpensesBucket.grantWrite(grantable);
+            });
+        };
+
+        grantExpenseProcessorPermissions([expenseProcessor, localDevRole]);
     }
 }
