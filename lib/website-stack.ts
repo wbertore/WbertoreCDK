@@ -2,7 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { Alias, Architecture, Code, Function, Runtime } from "aws-cdk-lib/aws-lambda";
 import { Bucket, IBucket } from 'aws-cdk-lib/aws-s3';
-import { RUST_ARTIFACT_S3_KEY_PARAM_NAME } from './common';
+import { RUST_ARTIFACT_S3_KEY_PARAM_NAME, resolveArtifactKeyParams } from './common';
 import { RECEIPT_UPLOADS_BUCKET_EXPORT } from './expense-stack';import { ARecord, HostedZone, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiMapping, DomainName, EndpointType, HttpApi, HttpMethod, HttpNoneAuthorizer } from 'aws-cdk-lib/aws-apigatewayv2';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
@@ -15,7 +15,6 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 
 export interface WebsiteStackProps extends cdk.StackProps {
     rustArtifactBucket: IBucket,
-    rustArtifactKey: string,
 }
 
 const ROOT_DOMAIN = "wbertore.dev"
@@ -26,7 +25,7 @@ export class WebsiteStack extends cdk.Stack {
         super(scope, id, props);
         // HACK: retrieve the runtime artifact key from the stack parameter overide we set
         // in the pipeline. 
-        const rustArtifactKey = new cdk.CfnParameter(this, RUST_ARTIFACT_S3_KEY_PARAM_NAME);
+        const artifactKeys = resolveArtifactKeyParams(this, 'website-stack');
         const receiptUploadsBucket = Bucket.fromBucketName(this, 'receipt-uploads', cdk.Fn.importValue(RECEIPT_UPLOADS_BUCKET_EXPORT));
         // Cognito User Pool for authentication
         const userPool = new UserPool(this, "website-user-pool", {
@@ -74,7 +73,7 @@ export class WebsiteStack extends cdk.Stack {
         });
 
         const websiteBackend = new Function(this, "website-backend", {
-            code: Code.fromBucket(props.rustArtifactBucket, rustArtifactKey.valueAsString),
+            code: Code.fromBucket(props.rustArtifactBucket, artifactKeys.get(RUST_ARTIFACT_S3_KEY_PARAM_NAME)!.valueAsString),
             runtime: Runtime.PROVIDED_AL2023,
             architecture: Architecture.ARM_64,
             timeout: cdk.Duration.seconds(60),
@@ -91,7 +90,6 @@ export class WebsiteStack extends cdk.Stack {
                 RUST_LOG: "debug",
                 RUST_BACKTRACE: "1",
                 AWS_LAMBDA_LOG_LEVEL: "DEBUG",
-                CODE_VERSION: rustArtifactKey.valueAsString,
             },
             logGroup: websiteBackendLogGroup,
         });

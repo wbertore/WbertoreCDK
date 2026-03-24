@@ -5,7 +5,7 @@ import { IBucket } from 'aws-cdk-lib/aws-s3';
 import { DeployRustArtifactsStep } from './deploy-rust-artifacts-step';
 import { ApplicationStage } from './application-stage';
 import { GlobalVariables } from 'aws-cdk-lib/aws-codepipeline';
-import { RUST_ARTIFACT_S3_KEY_PARAM_NAME, buildRustArtifactKey } from './common';
+import { BINARIES, buildArtifactKey } from './common';
 import * as codebuild from 'aws-cdk-lib/aws-codebuild';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import { DeploymentBucket } from './deployment-bucket';
@@ -44,35 +44,51 @@ export class PipelineStack extends cdk.Stack {
     const buildCacheBucket = new s3.Bucket(this, "rust-build-cache-bucket", {
       lifecycleRules: [{ expiration: cdk.Duration.days(30) }],
     });
-    // Our artifact key derived from the pipeline executionId.
-    // The executionId can only be resolved in the pipeline stack and in pipeline actions. To 
-    // access this in deployed stack, it must be passed via a CfnParameter
-    const rustArtifactKey = buildRustArtifactKey(GlobalVariables.executionId);
+
+    // Artifact keys keyed by outputDir for lookup throughout the pipeline
+    const artifactKeys = new Map<string, string>(
+      BINARIES.map(b => [b.outputDir, buildArtifactKey(b.artifactKeyPrefix, GlobalVariables.executionId)])
+    );
 
     const buildWave = pipeline.addWave("rust-build");
-    const rustBuildFileSet = this.addCodeBuildStep(buildWave, rustLambdasSource, buildCacheBucket);
+    const fileSets = this.addCodeBuildStep(buildWave, rustLambdasSource, buildCacheBucket);
 
     const deployWave = pipeline.addWave("deploy-rust-artifact");
-    this.addDeployRustArtifactsStep(deployWave, rustBuildFileSet, rustArtifactBucket, rustArtifactKey);
+    for (const binary of BINARIES) {
+      deployWave.addPre(new DeployRustArtifactsStep(
+        rustArtifactBucket,
+        artifactKeys.get(binary.outputDir)!,
+        fileSets.get(binary.outputDir)!,
+      ));
+    }
     deployWave.addPost(new CleanupArtifactsStep(rustArtifactBucket.cleanupFunction));
     
     const applicationStage = new ApplicationStage(this, "website-prod", {
       rustArtifactBucket,
-      rustArtifactKey,
     });
 
     pipeline.addStage(applicationStage);
 
     // HACK: We need to build the pipeline to mutate the inner structure to inject a cloudformation parameter
     pipeline.buildPipeline();
-    this.addParameterOverrideToStage(pipeline, applicationStage, RUST_ARTIFACT_S3_KEY_PARAM_NAME, rustArtifactKey);
+    for (const binary of BINARIES) {
+      this.addParameterOverrideToStage(
+        pipeline,
+        applicationStage,
+        binary.parameterName,
+        artifactKeys.get(binary.outputDir)!,
+        binary.stackName,
+      );
+    }
   };
 
   addCodeBuildStep(
     wave: Wave, 
     rustLambdasSource: cdk.pipelines.CodePipelineSource,
     buildCacheBucket: IBucket,
-  ): FileSet {
+  ): Map<string, FileSet> {
+    const [primary, ...rest] = BINARIES;
+
     const rustCodeBuildStep = new CodeBuildStep("rust-build-step", {
       buildEnvironment: {
         buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_ARM_3,
@@ -101,12 +117,7 @@ export class PipelineStack extends cdk.Stack {
         "cargo lambda build --release --compiler cargo"
       ],
       input: rustLambdasSource,
-      // TODO this is eventually going to be a tree where each entry point has a different parent.
-      // ./target/lambda/
-      //                | my-rust-lambda-1/bootstrap.zip
-      //                | my-rust-lambda-2/bootstrap.zip
-      // This is the primary output of the step. In theory we can reference this in other steps...
-      primaryOutputDirectory: "./target/lambda/WbertoreRustLambdas",
+      primaryOutputDirectory: primary.outputDir,
       cache: codebuild.Cache.bucket(buildCacheBucket),
       partialBuildSpec: codebuild.BuildSpec.fromObject({
         cache: {
@@ -120,25 +131,14 @@ export class PipelineStack extends cdk.Stack {
       })
     });
 
-    wave.addPre(rustCodeBuildStep);
-    // we should only have 1 output.
-    return rustCodeBuildStep.outputs[0].fileSet
-  }
+    const fileSets = new Map<string, FileSet>();
+    fileSets.set(primary.outputDir, rustCodeBuildStep.outputs[0].fileSet);
+    for (const binary of rest) {
+      fileSets.set(binary.outputDir, rustCodeBuildStep.addOutputDirectory(binary.outputDir));
+    }
 
-  addDeployRustArtifactsStep(
-    wave: Wave, 
-    rustBuildFileSet: FileSet, 
-    rustArtifactBucket: IBucket,
-    rustArtifactKey: string,
-  ) {
-    
-    // Make the s3 keys unique based on the source code.
-    // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.pipelines.CodePipelineSource.html#example
-    wave.addPre(new DeployRustArtifactsStep(
-      rustArtifactBucket, 
-      rustArtifactKey, 
-      rustBuildFileSet,
-    ));
+    wave.addPre(rustCodeBuildStep);
+    return fileSets;
   }
 
   // HACK: Allows us to set parameterOverrides for stages in our app.
@@ -148,17 +148,23 @@ export class PipelineStack extends cdk.Stack {
     codepipeline: CodePipeline, 
     stage: cdk.Stage, 
     parameterName: string, 
-    parameterValue: string
+    parameterValue: string,
+    stackName: string,
   ) {
     const deployIdx = codepipeline.pipeline.stages.indexOf(codepipeline.pipeline.stage(stage.stageName));
-    const actionsIdxs = codepipeline.pipeline.stage(stage.stageName).actions.filter(x => x.actionProperties.category === 'Deploy').map((x,i)=>i);
     const cfnPipeline = codepipeline.pipeline.node.findChild('Resource') as cdk.aws_codepipeline.CfnPipeline;
-    for(const i of actionsIdxs){
+    const cfnActions = (cfnPipeline.stages as any[])[deployIdx].actions;
+
+    cfnActions.forEach((action: any, i: number) => {
+      if (action.configuration?.StackName !== stackName) return;
+
+      const existing = action.configuration.ParameterOverrides
+        ? JSON.parse(action.configuration.ParameterOverrides)
+        : {};
       cfnPipeline.addOverride(
         `Properties.Stages.${deployIdx}.Actions.${i}.Configuration.ParameterOverrides`,
-        JSON.stringify({
-            [parameterName]: parameterValue
-        }));
-    }
+        JSON.stringify({ ...existing, [parameterName]: parameterValue })
+      );
+    });
   }
 }
