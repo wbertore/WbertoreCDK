@@ -96,11 +96,7 @@ export class PipelineStack extends cdk.Stack {
       // https://github.com/awslabs/aws-lambda-rust-runtime?tab=readme-ov-file#12-build-your-lambda-functions
       // Building natively on AL2023 ARM64 to match Lambda runtime, avoiding cross-compilation and zig
       commands: [
-        "echo PATH=$PATH",
-        "which cargo || echo 'cargo not found'",
-        "which cargo-lambda || echo 'cargo-lambda not found'",
-        "ls $HOME/.cargo/bin/cargo* || echo 'no cargo binaries found'",
-        "export PATH=$HOME/.cargo/bin:$PATH && which cargo && cargo --list && cargo lambda build --release --compiler cargo"
+        "cargo lambda build --release --compiler cargo"
       ],
       input: rustLambdasSource,
       // TODO this is eventually going to be a tree where each entry point has a different parent.
