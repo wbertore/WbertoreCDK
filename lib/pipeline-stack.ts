@@ -98,6 +98,7 @@ export class PipelineStack extends cdk.Stack {
       commands: [
         "echo PATH=$PATH",
         "which cargo || echo 'cargo not found'",
+        "which cargo-lambda || echo 'cargo-lambda not found'",
         "ls $HOME/.cargo/bin/cargo* || echo 'no cargo binaries found'",
         "export PATH=$HOME/.cargo/bin:$PATH && which cargo && cargo --list && cargo lambda build --release --compiler cargo"
       ],
