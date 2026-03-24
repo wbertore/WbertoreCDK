@@ -109,8 +109,7 @@ export class PipelineStack extends cdk.Stack {
       partialBuildSpec: codebuild.BuildSpec.fromObject({
         cache: {
           paths: [
-            "$HOME/.cargo/**/*",
-            "$HOME/.rustup/**/*",
+            "/root/.cargo/bin/cargo-lambda",
             "target/release/.fingerprint/**/*",
             "target/release/build/**/*",
             "target/release/deps/**/*"
