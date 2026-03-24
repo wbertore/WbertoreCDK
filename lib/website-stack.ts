@@ -2,7 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { Alias, Architecture, Code, Function, Runtime } from "aws-cdk-lib/aws-lambda";
 import { Bucket, IBucket } from 'aws-cdk-lib/aws-s3';
-import { RUST_ARTIFACT_S3_KEY_PARAM_NAME, resolveArtifactKeyParams } from './common';
+import { WEBSITE_BACKEND_S3_KEY_PARAM_NAME, resolveArtifactKeyParams } from './common';
 import { RECEIPT_UPLOADS_BUCKET_EXPORT } from './expense-stack';import { ARecord, HostedZone, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiMapping, DomainName, EndpointType, HttpApi, HttpMethod, HttpNoneAuthorizer } from 'aws-cdk-lib/aws-apigatewayv2';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
@@ -73,7 +73,7 @@ export class WebsiteStack extends cdk.Stack {
         });
 
         const websiteBackend = new Function(this, "website-backend", {
-            code: Code.fromBucket(props.rustArtifactBucket, artifactKeys.get(RUST_ARTIFACT_S3_KEY_PARAM_NAME)!.valueAsString),
+            code: Code.fromBucket(props.rustArtifactBucket, artifactKeys.get(WEBSITE_BACKEND_S3_KEY_PARAM_NAME)!.valueAsString),
             runtime: Runtime.PROVIDED_AL2023,
             architecture: Architecture.ARM_64,
             timeout: cdk.Duration.seconds(60),

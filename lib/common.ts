@@ -1,6 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 
-export const RUST_ARTIFACT_S3_KEY_PARAM_NAME = "rustartifacts3key";
+export const WEBSITE_BACKEND_S3_KEY_PARAM_NAME = "rustartifacts3key";
 export const EXPENSE_PROCESSOR_ARTIFACT_S3_KEY_PARAM_NAME = "expenseprocessors3key";
 
 export interface BinaryConfig {
@@ -19,7 +19,7 @@ export const BINARIES: BinaryConfig[] = [
         outputDir: "./target/lambda/website-backend",
         artifactKeyPrefix: "website-backend-",
         stackName: "website-stack",
-        parameterName: RUST_ARTIFACT_S3_KEY_PARAM_NAME,
+        parameterName: WEBSITE_BACKEND_S3_KEY_PARAM_NAME,
     },
     {
         outputDir: "./target/lambda/expense-processor",

@@ -3,24 +3,32 @@ import { IStage } from "aws-cdk-lib/aws-codepipeline";
 import { S3DeployAction } from "aws-cdk-lib/aws-codepipeline-actions";
 import { IBucket } from "aws-cdk-lib/aws-s3";
 import { FileSet } from "aws-cdk-lib/pipelines";
+import { BinaryConfig } from "./common";
 
-// Step that deploys a rust artifact to s3 for a given bucket and object key.
+interface BinaryArtifact {
+    binary: BinaryConfig;
+    artifactKey: string;
+    fileSet: FileSet;
+}
+
+// Step that deploys all rust binary artifacts to S3 in a single pipeline action group.
 export class DeployRustArtifactsStep extends pipelines.Step implements pipelines.ICodePipelineActionFactory {
-    public constructor(private bucket: IBucket, private objectKey: string, private readonly input: FileSet) {
+    public constructor(private bucket: IBucket, private artifacts: BinaryArtifact[]) {
         super("DeployRustArtifactsStep");
     }
 
     produceAction(stage: IStage, options: pipelines.ProduceActionOptions): pipelines.CodePipelineActionFactoryResult {
-        stage.addAction(new S3DeployAction({
-            actionName: options.actionName,
-            runOrder: options.runOrder,
-            extract: false,
-            // This is the thing we need to track for aliasing our website function.
-            objectKey: this.objectKey,
-            input: options.artifacts.toCodePipeline(this.input),
-            bucket: this.bucket,
-        }));
+        this.artifacts.forEach(({ binary, artifactKey, fileSet }, i) => {
+            stage.addAction(new S3DeployAction({
+                actionName: `${options.actionName}-${binary.artifactKeyPrefix.replace(/-$/, '')}`,
+                runOrder: options.runOrder + i,
+                extract: false,
+                objectKey: artifactKey,
+                input: options.artifacts.toCodePipeline(fileSet),
+                bucket: this.bucket,
+            }));
+        });
 
-        return { runOrdersConsumed: 1 }
+        return { runOrdersConsumed: this.artifacts.length };
     }
 }

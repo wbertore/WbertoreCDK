@@ -54,13 +54,14 @@ export class PipelineStack extends cdk.Stack {
     const fileSets = this.addCodeBuildStep(buildWave, rustLambdasSource, buildCacheBucket);
 
     const deployWave = pipeline.addWave("deploy-rust-artifact");
-    for (const binary of BINARIES) {
-      deployWave.addPre(new DeployRustArtifactsStep(
-        rustArtifactBucket,
-        artifactKeys.get(binary.outputDir)!,
-        fileSets.get(binary.outputDir)!,
-      ));
-    }
+    deployWave.addPre(new DeployRustArtifactsStep(
+      rustArtifactBucket,
+      BINARIES.map(b => ({
+        binary: b,
+        artifactKey: artifactKeys.get(b.outputDir)!,
+        fileSet: fileSets.get(b.outputDir)!,
+      })),
+    ));
     deployWave.addPost(new CleanupArtifactsStep(rustArtifactBucket.cleanupFunction));
     
     const applicationStage = new ApplicationStage(this, "website-prod", {
@@ -71,15 +72,7 @@ export class PipelineStack extends cdk.Stack {
 
     // HACK: We need to build the pipeline to mutate the inner structure to inject a cloudformation parameter
     pipeline.buildPipeline();
-    for (const binary of BINARIES) {
-      this.addParameterOverrideToStage(
-        pipeline,
-        applicationStage,
-        binary.parameterName,
-        artifactKeys.get(binary.outputDir)!,
-        binary.stackName,
-      );
-    }
+    this.applyParameterOverrides(pipeline, applicationStage, artifactKeys);
   };
 
   addCodeBuildStep(
@@ -144,27 +137,27 @@ export class PipelineStack extends cdk.Stack {
   // HACK: Allows us to set parameterOverrides for stages in our app.
   // following example on stack overflow
   // https://stackoverflow.com/questions/76391190/use-aws-codepipeline-variables-in-a-custom-stage
-  addParameterOverrideToStage(
-    codepipeline: CodePipeline, 
-    stage: cdk.Stage, 
-    parameterName: string, 
-    parameterValue: string,
-    stackName: string,
-  ) {
+  applyParameterOverrides(codepipeline: CodePipeline, stage: cdk.Stage, artifactKeys: Map<string, string>) {
+    // Group parameters by stackName so each stack's action gets one merged write
+    const byStack = BINARIES.reduce((acc, binary) => {
+      const params = acc.get(binary.stackName) ?? {};
+      params[binary.parameterName] = artifactKeys.get(binary.outputDir)!;
+      return acc.set(binary.stackName, params);
+    }, new Map<string, Record<string, string>>());
+
     const deployIdx = codepipeline.pipeline.stages.indexOf(codepipeline.pipeline.stage(stage.stageName));
     const cfnPipeline = codepipeline.pipeline.node.findChild('Resource') as cdk.aws_codepipeline.CfnPipeline;
-    const cfnActions = (cfnPipeline.stages as any[])[deployIdx].actions;
+    const actionsIdxs = codepipeline.pipeline.stage(stage.stageName).actions
+      .filter(x => x.actionProperties.category === 'Deploy')
+      .map((x, i) => ({ i, actionName: x.actionProperties.actionName }));
 
-    cfnActions.forEach((action: any, i: number) => {
-      if (action.configuration?.StackName !== stackName) return;
-
-      const existing = action.configuration.ParameterOverrides
-        ? JSON.parse(action.configuration.ParameterOverrides)
-        : {};
+    for (const { i, actionName } of actionsIdxs) {
+      const stackName = [...byStack.keys()].find(s => actionName.includes(s));
+      if (!stackName) continue;
       cfnPipeline.addOverride(
         `Properties.Stages.${deployIdx}.Actions.${i}.Configuration.ParameterOverrides`,
-        JSON.stringify({ ...existing, [parameterName]: parameterValue })
+        JSON.stringify(byStack.get(stackName))
       );
-    });
+    }
   }
 }
