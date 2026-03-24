@@ -1,6 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { Bucket } from 'aws-cdk-lib/aws-s3';
+import { Bucket, HttpMethods } from 'aws-cdk-lib/aws-s3';
 import { RUST_ARTIFACT_S3_KEY_PARAM_NAME } from './common';
 
 export const RECEIPT_UPLOADS_BUCKET_EXPORT = 'ReceiptUploadsBucketName';
@@ -17,6 +17,12 @@ export class ExpenseStack extends cdk.Stack {
             autoDeleteObjects: true,
             lifecycleRules: [{
                 expiration: cdk.Duration.days(14),
+            }],
+            cors: [{
+                allowedMethods: [HttpMethods.PUT],
+                allowedOrigins: ['https://website.wbertore.dev', 'https://localhost:9000'],
+                allowedHeaders: ['content-type'],
+                maxAge: 3000,
             }],
         });
 
