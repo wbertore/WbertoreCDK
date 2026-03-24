@@ -96,6 +96,8 @@ export class PipelineStack extends cdk.Stack {
       // https://github.com/awslabs/aws-lambda-rust-runtime?tab=readme-ov-file#12-build-your-lambda-functions
       // Building natively on AL2023 ARM64 to match Lambda runtime, avoiding cross-compilation and zig
       commands: [
+        "pwd && ls target/release/deps 2>/dev/null | wc -l || echo 'no deps cache'",
+        "ls target/release/.fingerprint 2>/dev/null | head -1 | xargs -I{} cat target/release/.fingerprint/{}/dep-bin-* 2>/dev/null || echo 'no fingerprint'",
         "cargo lambda build --release --compiler cargo"
       ],
       input: rustLambdasSource,
