@@ -2,7 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Function, IFunction, Runtime, Code } from 'aws-cdk-lib/aws-lambda';
-import { BINARIES } from './common';
+import { BINARIES } from '../../constants';
 
 export class DeploymentBucket extends Bucket {
     public readonly cleanupFunction: IFunction;

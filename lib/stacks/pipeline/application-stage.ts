@@ -1,7 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { WebsiteStack, WebsiteStackProps } from './website-stack';
-import { ExpenseStack } from './expense-stack';
+import { WebsiteStack, WebsiteStackProps } from '../website/website-stack';
+import { ExpenseStack } from '../expense/expense-stack';
 import { IBucket } from 'aws-cdk-lib/aws-s3';
 
 export interface ApplicationStageProps extends cdk.StageProps {

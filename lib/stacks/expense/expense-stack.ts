@@ -8,7 +8,7 @@ import { Function, Code, Runtime, Architecture } from 'aws-cdk-lib/aws-lambda';
 import { PolicyStatement, Role, AccountRootPrincipal, IGrantable } from 'aws-cdk-lib/aws-iam';
 import { IBucket } from 'aws-cdk-lib/aws-s3';
 import { Table, AttributeType, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
-import { EXPENSE_PROCESSOR_ARTIFACT_S3_KEY_PARAM_NAME, resolveArtifactKeyParams } from './common';
+import { EXPENSE_PROCESSOR_ARTIFACT_S3_KEY_PARAM_NAME, resolveArtifactKeyParams } from '../../constants';
 
 export const RECEIPT_UPLOADS_BUCKET_EXPORT = 'ReceiptUploadsBucketName';
 
@@ -98,5 +98,10 @@ export class ExpenseStack extends cdk.Stack {
         };
 
         grantExpenseProcessorPermissions([expenseProcessor, localDevRole]);
+
+        localDevRole.addToPolicy(new PolicyStatement({
+            actions: ['lambda:GetFunctionConfiguration'],
+            resources: [expenseProcessor.functionArn],
+        }));
     }
 }

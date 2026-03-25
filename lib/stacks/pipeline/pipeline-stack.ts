@@ -5,7 +5,7 @@ import { IBucket } from 'aws-cdk-lib/aws-s3';
 import { DeployRustArtifactsStep } from './deploy-rust-artifacts-step';
 import { ApplicationStage } from './application-stage';
 import { GlobalVariables } from 'aws-cdk-lib/aws-codepipeline';
-import { BINARIES, buildArtifactKey } from './common';
+import { BINARIES, buildArtifactKey } from '../../constants';
 import * as codebuild from 'aws-cdk-lib/aws-codebuild';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import { DeploymentBucket } from './deployment-bucket';

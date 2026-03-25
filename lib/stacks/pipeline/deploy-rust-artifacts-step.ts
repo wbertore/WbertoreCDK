@@ -3,7 +3,7 @@ import { IStage } from "aws-cdk-lib/aws-codepipeline";
 import { S3DeployAction } from "aws-cdk-lib/aws-codepipeline-actions";
 import { IBucket } from "aws-cdk-lib/aws-s3";
 import { FileSet } from "aws-cdk-lib/pipelines";
-import { BinaryConfig } from "./common";
+import { BinaryConfig } from "../../common";
 
 interface BinaryArtifact {
     binary: BinaryConfig;
