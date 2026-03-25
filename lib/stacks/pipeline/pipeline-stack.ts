@@ -23,6 +23,11 @@ export class PipelineStack extends cdk.Stack {
     // self mutating build step
     const pipeline = new CodePipeline(this, 'Pipeline', {
       pipelineName: 'Pipeline',
+      synthCodeBuildDefaults: {
+        partialBuildSpec: codebuild.BuildSpec.fromObject({
+          phases: { install: { 'runtime-versions': { nodejs: 22 } } }
+        }),
+      },
       synth: new ShellStep('Synth', {
         input: CodePipelineSource.connection('wbertore/WbertoreCDK', 'main', {
           connectionArn,

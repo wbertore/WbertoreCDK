@@ -4,6 +4,9 @@
   "bin": {
     "wbertore_cdk": "bin/wbertore_cdk.js"
   },
+  "engines": {
+    "node": ">= 22.0.0"
+  },
   "scripts": {
     "clean": "rm -rf dist",
     "build": "npm run clean && tsc",
