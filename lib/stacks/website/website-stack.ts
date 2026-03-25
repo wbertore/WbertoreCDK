@@ -3,7 +3,8 @@ import { Construct } from 'constructs';
 import { Alias, Architecture, Code, Function, Runtime } from "aws-cdk-lib/aws-lambda";
 import { Bucket, IBucket } from 'aws-cdk-lib/aws-s3';
 import { WEBSITE_BACKEND_S3_KEY_PARAM_NAME, resolveArtifactKeyParams } from '../../constants';
-import { RECEIPT_UPLOADS_BUCKET_EXPORT } from '../expense/expense-stack';
+import { RECEIPT_UPLOADS_BUCKET_EXPORT, EXPENSES_TABLE_NAME_EXPORT } from '../expense/expense-stack';
+import { Table } from 'aws-cdk-lib/aws-dynamodb';
 import { ARecord, HostedZone, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiMapping, DomainName, EndpointType, HttpApi, HttpMethod, HttpNoneAuthorizer } from 'aws-cdk-lib/aws-apigatewayv2';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
@@ -28,6 +29,7 @@ export class WebsiteStack extends cdk.Stack {
         // in the pipeline. 
         const artifactKeys = resolveArtifactKeyParams(this, 'website-stack');
         const receiptUploadsBucket = Bucket.fromBucketName(this, 'receipt-uploads', cdk.Fn.importValue(RECEIPT_UPLOADS_BUCKET_EXPORT));
+        const expensesTable = Table.fromTableName(this, 'expenses-table', cdk.Fn.importValue(EXPENSES_TABLE_NAME_EXPORT));
         // Cognito User Pool for authentication
         const userPool = new UserPool(this, "website-user-pool", {
             userPoolName: "website-users",
@@ -88,6 +90,7 @@ export class WebsiteStack extends cdk.Stack {
                 AUTH_DOMAIN: WEBSITE_DOMAIN,
                 CSRF_KMS_KEY_ID: csrfKey.keyId,
                 RECEIPTS_BUCKET: receiptUploadsBucket.bucketName,
+                EXPENSES_TABLE_NAME: expensesTable.tableName,
                 RUST_LOG: "debug",
                 RUST_BACKTRACE: "1",
                 AWS_LAMBDA_LOG_LEVEL: "DEBUG",
@@ -114,6 +117,7 @@ export class WebsiteStack extends cdk.Stack {
                 }));
                 csrfKey.grant(grantable, 'kms:GenerateMac', 'kms:VerifyMac');
                 receiptUploadsBucket.grantPut(grantable);
+                expensesTable.grantReadWriteData(grantable);
             });
         };
 

@@ -12,6 +12,7 @@ import { Table, AttributeType, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
 import { EXPENSE_PROCESSOR_ARTIFACT_S3_KEY_PARAM_NAME, resolveArtifactKeyParams } from '../../constants';
 
 export const RECEIPT_UPLOADS_BUCKET_EXPORT = 'ReceiptUploadsBucketName';
+export const EXPENSES_TABLE_NAME_EXPORT = 'ExpensesTableName';
 
 export interface ExpenseStackProps extends cdk.StackProps {
     rustArtifactBucket: IBucket;
@@ -59,6 +60,11 @@ export class ExpenseStack extends cdk.Stack {
             sortKey: { name: 'SK', type: AttributeType.STRING },
             billingMode: BillingMode.PAY_PER_REQUEST,
             removalPolicy: cdk.RemovalPolicy.DESTROY,
+        });
+
+        new cdk.CfnOutput(this, 'ExpensesTableName', {
+            value: expensesTable.tableName,
+            exportName: EXPENSES_TABLE_NAME_EXPORT,
         });
 
         const expenseProcessorLogGroup = new logs.LogGroup(this, 'expense-processor-logs', {
