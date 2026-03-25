@@ -8,6 +8,7 @@ import { GlobalVariables } from 'aws-cdk-lib/aws-codepipeline';
 import { BINARIES, buildArtifactKey } from '../../constants';
 import * as codebuild from 'aws-cdk-lib/aws-codebuild';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import { DeploymentBucket } from './deployment-bucket';
 import { CleanupArtifactsStep } from './cleanup-artifacts-step';
 
@@ -20,6 +21,18 @@ export class PipelineStack extends cdk.Stack {
       connectionArn,
     });
 
+    const synthLogGroup = new logs.LogGroup(this, "synth-logs", {
+      logGroupName: "/aws/codebuild/pipeline-synth",
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    const selfMutateLogGroup = new logs.LogGroup(this, "self-mutate-logs", {
+      logGroupName: "/aws/codebuild/pipeline-self-mutate",
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
     // self mutating build step
     const pipeline = new CodePipeline(this, 'Pipeline', {
       pipelineName: 'Pipeline',
@@ -27,6 +40,10 @@ export class PipelineStack extends cdk.Stack {
         partialBuildSpec: codebuild.BuildSpec.fromObject({
           phases: { install: { 'runtime-versions': { nodejs: 22 } } }
         }),
+        logging: { cloudWatch: { logGroup: synthLogGroup } },
+      },
+      selfMutationCodeBuildDefaults: {
+        logging: { cloudWatch: { logGroup: selfMutateLogGroup } },
       },
       synth: new ShellStep('Synth', {
         input: CodePipelineSource.connection('wbertore/WbertoreCDK', 'main', {
@@ -50,13 +67,19 @@ export class PipelineStack extends cdk.Stack {
       lifecycleRules: [{ expiration: cdk.Duration.days(30) }],
     });
 
+    const rustBuildLogGroup = new logs.LogGroup(this, "rust-build-logs", {
+      logGroupName: "/aws/codebuild/rust-build-step",
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
     // Artifact keys keyed by outputDir for lookup throughout the pipeline
     const artifactKeys = new Map<string, string>(
       BINARIES.map(b => [b.outputDir, buildArtifactKey(b.artifactKeyPrefix, GlobalVariables.executionId)])
     );
 
     const buildWave = pipeline.addWave("rust-build");
-    const fileSets = this.addCodeBuildStep(buildWave, rustLambdasSource, buildCacheBucket);
+    const fileSets = this.addCodeBuildStep(buildWave, rustLambdasSource, buildCacheBucket, rustBuildLogGroup);
 
     const deployWave = pipeline.addWave("deploy-rust-artifact");
     deployWave.addPre(new DeployRustArtifactsStep(
@@ -84,6 +107,7 @@ export class PipelineStack extends cdk.Stack {
     wave: Wave, 
     rustLambdasSource: cdk.pipelines.CodePipelineSource,
     buildCacheBucket: IBucket,
+    logGroup: logs.ILogGroup,
   ): Map<string, FileSet> {
     const [primary, ...rest] = BINARIES;
 
@@ -91,6 +115,9 @@ export class PipelineStack extends cdk.Stack {
       buildEnvironment: {
         buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_ARM_3,
         computeType: codebuild.ComputeType.SMALL,
+      },
+      logging: {
+        cloudWatch: { logGroup },
       },
       installCommands: [
         // Install rustup: https://forge.rust-lang.org/infra/other-installation-methods.html#other-ways-to-install-rustup

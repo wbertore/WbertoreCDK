@@ -5,6 +5,7 @@ import { SqsDestination } from 'aws-cdk-lib/aws-s3-notifications';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { Function, Code, Runtime, Architecture } from 'aws-cdk-lib/aws-lambda';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import { PolicyStatement, Role, AccountRootPrincipal, IGrantable } from 'aws-cdk-lib/aws-iam';
 import { IBucket } from 'aws-cdk-lib/aws-s3';
 import { Table, AttributeType, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
@@ -60,6 +61,12 @@ export class ExpenseStack extends cdk.Stack {
             removalPolicy: cdk.RemovalPolicy.DESTROY,
         });
 
+        const expenseProcessorLogGroup = new logs.LogGroup(this, 'expense-processor-logs', {
+            logGroupName: '/aws/lambda/expense-processor',
+            retention: logs.RetentionDays.ONE_WEEK,
+            removalPolicy: cdk.RemovalPolicy.DESTROY,
+        });
+
         const expenseProcessor = new Function(this, 'expense-processor', {
             functionName: 'expense-processor',
             code: Code.fromBucket(props.rustArtifactBucket, artifactKeys.get(EXPENSE_PROCESSOR_ARTIFACT_S3_KEY_PARAM_NAME)!.valueAsString),
@@ -70,6 +77,7 @@ export class ExpenseStack extends cdk.Stack {
             environment: {
                 EXPENSES_TABLE_NAME: expensesTable.tableName,
             },
+            logGroup: expenseProcessorLogGroup,
         });
 
         expenseProcessor.addEventSource(new SqsEventSource(receiptUploadQueue, {
