@@ -90,7 +90,11 @@ export class ExpenseStack extends cdk.Stack {
                 }));
                 grantable.grantPrincipal.addToPrincipalPolicy(new PolicyStatement({
                     actions: ['bedrock:InvokeModel'],
-                    resources: [`arn:aws:bedrock:${this.region}::foundation-model/anthropic.claude-haiku-*`],
+                    resources: [
+                        `arn:aws:bedrock:${this.region}::foundation-model/anthropic.claude-haiku-*`,
+                        `arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-*`,
+                        `arn:aws:bedrock:${this.region}:*:inference-profile/us.anthropic.claude-haiku-*`,
+                    ],
                 }));
                 receiptUploadsBucket.grantRead(grantable);
                 expensesTable.grantWriteData(grantable);
