@@ -7,6 +7,7 @@ import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { Function, Code, Runtime, Architecture } from 'aws-cdk-lib/aws-lambda';
 import { PolicyStatement, Role, AccountRootPrincipal, IGrantable } from 'aws-cdk-lib/aws-iam';
 import { IBucket } from 'aws-cdk-lib/aws-s3';
+import { Table, AttributeType, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
 import { EXPENSE_PROCESSOR_ARTIFACT_S3_KEY_PARAM_NAME, resolveArtifactKeyParams } from './common';
 
 export const RECEIPT_UPLOADS_BUCKET_EXPORT = 'ReceiptUploadsBucketName';
@@ -51,9 +52,12 @@ export class ExpenseStack extends cdk.Stack {
 
         receiptUploadsBucket.addEventNotification(EventType.OBJECT_CREATED, new SqsDestination(receiptUploadQueue));
 
-        const processedExpensesBucket = new Bucket(this, 'processed-expenses', {
+        const expensesTable = new Table(this, 'expenses-table', {
+            tableName: 'expenses',
+            partitionKey: { name: 'PK', type: AttributeType.STRING },
+            sortKey: { name: 'SK', type: AttributeType.STRING },
+            billingMode: BillingMode.PAY_PER_REQUEST,
             removalPolicy: cdk.RemovalPolicy.DESTROY,
-            autoDeleteObjects: true,
         });
 
         const expenseProcessor = new Function(this, 'expense-processor', {
@@ -64,7 +68,7 @@ export class ExpenseStack extends cdk.Stack {
             handler: 'does_not_matter',
             timeout: cdk.Duration.seconds(60),
             environment: {
-                PROCESSED_EXPENSES_BUCKET: processedExpensesBucket.bucketName,
+                EXPENSES_TABLE_NAME: expensesTable.tableName,
             },
         });
 
@@ -89,7 +93,7 @@ export class ExpenseStack extends cdk.Stack {
                     resources: [`arn:aws:bedrock:${this.region}::foundation-model/anthropic.claude-haiku-*`],
                 }));
                 receiptUploadsBucket.grantRead(grantable);
-                processedExpensesBucket.grantWrite(grantable);
+                expensesTable.grantWriteData(grantable);
             });
         };
 
