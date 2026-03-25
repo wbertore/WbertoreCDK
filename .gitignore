@@ -9,3 +9,4 @@ cdk.out
 
 # IDE scratch files
 *~
+dist/
