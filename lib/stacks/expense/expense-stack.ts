@@ -169,6 +169,12 @@ export class ExpenseStack extends cdk.Stack {
             resources: [textractCompletionTopic.topicArn],
         }));
 
+        // Role that Textract assumes to publish job completion notifications to SNS
+        const textractSnsRole = new Role(this, 'textract-sns-role', {
+            assumedBy: new ServicePrincipal('textract.amazonaws.com'),
+        });
+        textractCompletionTopic.grantPublish(textractSnsRole);
+
         // Lambda: triggered by new statement uploads, starts Textract job
         const documentAnalysisTriggerLogGroup = new logs.LogGroup(this, 'document-analysis-trigger-logs', {
             logGroupName: '/aws/lambda/document-analysis-trigger',
@@ -185,6 +191,7 @@ export class ExpenseStack extends cdk.Stack {
             timeout: cdk.Duration.seconds(60),
             environment: {
                 TEXTRACT_SNS_TOPIC_ARN: textractCompletionTopic.topicArn,
+                TEXTRACT_SNS_ROLE_ARN: textractSnsRole.roleArn,
             },
             logGroup: documentAnalysisTriggerLogGroup,
         });
