@@ -5,6 +5,8 @@ import * as cdk from 'aws-cdk-lib';
 
 export const WEBSITE_BACKEND_S3_KEY_PARAM_NAME = "rustartifacts3key";
 export const EXPENSE_PROCESSOR_ARTIFACT_S3_KEY_PARAM_NAME = "expenseprocessors3key";
+export const DOCUMENT_ANALYSIS_TRIGGER_S3_KEY_PARAM_NAME = "documentanalysistriggerskey";
+export const DOCUMENT_ANALYSIS_PROCESSOR_S3_KEY_PARAM_NAME = "documentanalysisprocessors3key";
 
 export interface BinaryConfig {
     // Path to the cargo lambda build output, e.g. "./target/lambda/website-backend"
@@ -29,6 +31,18 @@ export const BINARIES: BinaryConfig[] = [
         artifactKeyPrefix: "expense-processor-",
         stackName: "expense-stack",
         parameterName: EXPENSE_PROCESSOR_ARTIFACT_S3_KEY_PARAM_NAME,
+    },
+    {
+        outputDir: "./target/lambda/document-analysis-trigger",
+        artifactKeyPrefix: "document-analysis-trigger-",
+        stackName: "expense-stack",
+        parameterName: DOCUMENT_ANALYSIS_TRIGGER_S3_KEY_PARAM_NAME,
+    },
+    {
+        outputDir: "./target/lambda/document-analysis-processor",
+        artifactKeyPrefix: "document-analysis-processor-",
+        stackName: "expense-stack",
+        parameterName: DOCUMENT_ANALYSIS_PROCESSOR_S3_KEY_PARAM_NAME,
     },
 ];
 
