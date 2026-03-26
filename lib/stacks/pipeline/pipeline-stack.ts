@@ -82,15 +82,18 @@ export class PipelineStack extends cdk.Stack {
     const fileSets = this.addCodeBuildStep(buildWave, rustLambdasSource, buildCacheBucket, rustBuildLogGroup);
 
     const deployWave = pipeline.addWave("deploy-rust-artifact");
-    deployWave.addPre(new DeployRustArtifactsStep(
+    const deployStep = new DeployRustArtifactsStep(
       rustArtifactBucket,
       BINARIES.map(b => ({
         binary: b,
         artifactKey: artifactKeys.get(b.outputDir)!,
         fileSet: fileSets.get(b.outputDir)!,
       })),
-    ));
-    deployWave.addPost(new CleanupArtifactsStep(rustArtifactBucket.cleanupFunction));
+    );
+    const cleanupStep = new CleanupArtifactsStep(rustArtifactBucket.cleanupFunction);
+    cleanupStep.addStepDependency(deployStep);
+    deployWave.addPre(deployStep);
+    deployWave.addPre(cleanupStep);
     
     const applicationStage = new ApplicationStage(this, "website-prod", {
       rustArtifactBucket,

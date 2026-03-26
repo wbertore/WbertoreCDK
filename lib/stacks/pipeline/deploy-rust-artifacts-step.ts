@@ -18,10 +18,10 @@ export class DeployRustArtifactsStep extends pipelines.Step implements pipelines
     }
 
     produceAction(stage: IStage, options: pipelines.ProduceActionOptions): pipelines.CodePipelineActionFactoryResult {
-        this.artifacts.forEach(({ binary, artifactKey, fileSet }, i) => {
+        this.artifacts.forEach(({ binary, artifactKey, fileSet }) => {
             stage.addAction(new S3DeployAction({
                 actionName: `${options.actionName}-${binary.artifactKeyPrefix.replace(/-$/, '')}`,
-                runOrder: options.runOrder + i,
+                runOrder: options.runOrder,
                 extract: false,
                 objectKey: artifactKey,
                 input: options.artifacts.toCodePipeline(fileSet),
@@ -29,6 +29,6 @@ export class DeployRustArtifactsStep extends pipelines.Step implements pipelines
             }));
         });
 
-        return { runOrdersConsumed: this.artifacts.length };
+        return { runOrdersConsumed: 1 };
     }
 }
