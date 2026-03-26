@@ -99,7 +99,7 @@ export class ExpenseStack extends cdk.Stack {
         const grantExpenseProcessorPermissions = (grantables: IGrantable[]) => {
             grantables.forEach(grantable => {
                 grantable.grantPrincipal.addToPrincipalPolicy(new PolicyStatement({
-                    actions: ['textract:AnalyzeExpense', 'textract:AnalyzeDocument'],
+                    actions: ['textract:*'],
                     resources: ['*'],
                 }));
                 grantable.grantPrincipal.addToPrincipalPolicy(new PolicyStatement({
