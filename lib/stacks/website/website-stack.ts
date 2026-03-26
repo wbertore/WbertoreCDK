@@ -82,6 +82,8 @@ export class WebsiteStack extends cdk.Stack {
             timeout: cdk.Duration.seconds(60),
             handler: "does_not_matter",
             functionName: "website-backend",
+            // HACK: Embed the param in the function description to force it to update
+            description: artifactKeys.get(WEBSITE_BACKEND_S3_KEY_PARAM_NAME)!.valueAsString,
             environment: {
                 COGNITO_USER_POOL_ID: userPool.userPoolId,
                 COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
@@ -131,7 +133,7 @@ export class WebsiteStack extends cdk.Stack {
 
         const websiteBackendAlias = new Alias(this, "website-backend-alias", {
             aliasName: "live",
-            version: websiteBackend.currentVersion
+            version: websiteBackend.currentVersion,
         });
 
         const lambdaIntegration = new HttpLambdaIntegration("website-backend-integration", websiteBackendAlias);
