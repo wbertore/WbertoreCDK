@@ -1,6 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { Alias, Architecture, Code, Function, Runtime } from "aws-cdk-lib/aws-lambda";
+import { Architecture, Code, Function, Runtime } from "aws-cdk-lib/aws-lambda";
 import { Bucket, IBucket } from 'aws-cdk-lib/aws-s3';
 import { WEBSITE_BACKEND_S3_KEY_PARAM_NAME, resolveArtifactKeyParams } from '../../constants';
 import { RECEIPT_UPLOADS_BUCKET_EXPORT, EXPENSES_TABLE_NAME_EXPORT } from '../expense/expense-stack';
@@ -131,12 +131,7 @@ export class WebsiteStack extends cdk.Stack {
             resources: [websiteBackend.functionArn]
         }));
 
-        const websiteBackendAlias = new Alias(this, "website-backend-alias", {
-            aliasName: "live",
-            version: websiteBackend.currentVersion,
-        });
-
-        const lambdaIntegration = new HttpLambdaIntegration("website-backend-integration", websiteBackendAlias);
+        const lambdaIntegration = new HttpLambdaIntegration("website-backend-integration", websiteBackend);
 
         const websiteApi = new HttpApi(this, "website-api", {
             apiName: "WebsiteApi",
